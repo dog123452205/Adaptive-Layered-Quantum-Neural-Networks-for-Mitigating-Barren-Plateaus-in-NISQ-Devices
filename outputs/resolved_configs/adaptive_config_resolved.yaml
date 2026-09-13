@@ -1,0 +1,137 @@
+architecture:
+  allowed_entanglement_topologies:
+  - none
+  - linear
+  - circular
+  ansatz_type: hea
+  encoding_type: angle
+  entangler_type: ising_zz
+  gate_set: RX_RY_RZ_PARAM_ENT
+  initial_depth: 2
+  initial_entanglement_topology: linear
+  max_depth: 16
+  min_depth: 1
+  model_type: al_qnn_classifier
+  n_qubits: 4
+calibration:
+  calibration_rules_path: outputs/stage1c/calibration_rules.json
+  threshold_priority:
+  - stage1b_task_aware_matched
+  - stage1a_random_matched
+  - n_qubit_scaled_fallback
+  - fixed_fallback
+dataset:
+  name: iris
+  random_state: 42
+  selected_classes:
+  - 0
+  - 1
+  target_mode: binary_subset
+  task_type: classification
+device:
+  diff_fallback_policy: error
+  diff_method: backprop
+  fallback_diff_method: parameter-shift
+  name: default.qubit
+  shots: null
+experiment:
+  description: Rule-based AL-QNN with safe mutation state machine.
+  group: stage2_stage3_rule_based_alqnn
+  name: adaptive_alqnn_template
+logging:
+  architecture_trace_path: outputs/training/al_qnn/architecture_trace.jsonl
+  checkpoint_dir: outputs/training/al_qnn/checkpoints
+  mutation_trace_path: outputs/training/al_qnn/mutation_trace.jsonl
+  output_dir: outputs/training/al_qnn
+  parameter_registry_path: outputs/training/al_qnn/parameter_registry.jsonl
+  telemetry_path: outputs/training/al_qnn/telemetry.csv
+metadata:
+  config_hash: f645d74d661db9c5eda5bea85e28c7e9de814a258198a5d0d06fa16f446723da
+  numpy_version: 2.4.6
+  pandas_version: 2.2.3
+  pennylane_version: 0.44.1
+  platform: Windows-10-10.0.26200-SP0
+  python_version: 3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938
+    64 bit (AMD64)]
+  pyyaml_version: 6.0.2
+  resolved_at_utc: '2026-06-21T03:39:57.601265+00:00'
+  resolver_messages: []
+outputs:
+  resolved_config_path: outputs/resolved_configs/config_resolved.yaml
+safety:
+  enforce_resource_limits: true
+  resource_limit_policy: strict
+  resource_overrides:
+    max_qubits: null
+  simulation_profile: main
+scheduler:
+  acceptance:
+    max_relative_loss_increase: 0.02
+    monitor_metric: validation_loss
+    require_gradient_health_recovery: true
+  action_interval_epochs: 5
+  allowed_actions:
+  - keep
+  - add_layer
+  - stop_growth
+  - soft_freeze_layer
+  - unfreeze_layer
+  - propose_prune_layer
+  - soft_mask_layer
+  - commit_prune_layer
+  - rollback_prune
+  - propose_reduce_entanglement
+  - soft_mask_entanglement
+  - commit_reduce_entanglement
+  - rollback_entanglement
+  - rollback
+  enabled: true
+  prune:
+    enabled: true
+    mask:
+      anneal_steps: 5
+      final_value: 0.0
+      initial_value: 1.0
+      mask_mode: rotation_parameter_mask
+      mask_schedule: cosine
+    mode: soft_mask_then_commit
+  reduce_entanglement:
+    enabled: true
+    mask:
+      anneal_steps: 5
+      final_value: 0.0
+      initial_value: 1.0
+      mask_mode: entangler_strength_mask
+      mask_schedule: cosine
+    mode: parameterized_strength_annealing
+  rollback:
+    enabled: true
+    optimizer_state_policy:
+    - restore_by_param_id
+    - reset_new_params
+    - archive_removed_params
+    restore_architecture_state: true
+    restore_optimizer_state: true
+    restore_parameter_state: true
+  type: rule_based
+  warmup_epochs: 10
+telemetry:
+  collect_every_epochs: 1
+  metrics:
+  - training_loss
+  - validation_loss
+  - grad_norm
+  - normalized_grad_norm
+  - mean_abs_grad
+  - near_zero_ratio
+  - layer_grad_norm
+  - layer_near_zero_ratio
+  - depth
+  - n_params
+  - n_entangling_gates
+training:
+  base_learning_rate: 0.01
+  batch_size: 16
+  epochs: 100
+  optimizer: adam
+  random_seed: 42

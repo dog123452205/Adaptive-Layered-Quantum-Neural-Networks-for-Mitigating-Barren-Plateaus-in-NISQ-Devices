@@ -1,0 +1,5 @@
+dataset,friendly,n_qubits,test_accuracy,n_test,final_depth,avg_infer_ms,total_infer_ms
+heart,Heart Disease (Cleveland),8,0.6182,55,4,33.4719,1840.96
+cancer,Breast Cancer Wisconsin,8,0.75,112,2,16.1356,1807.18
+parkinsons,Parkinson's (Oxford),8,0.6,20,2,16.528,330.56
+predictive_maintenance,AI4I Predictive Maintenance,6,0.4779,136,4,21.9112,2979.93

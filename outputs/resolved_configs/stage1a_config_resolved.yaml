@@ -1,0 +1,72 @@
+ansatz:
+  encoding_type: none
+  entanglement_topologies:
+  - linear
+  - circular
+  entangler_type: cnot
+  gate_set: RX_RY_RZ_CNOT
+  max_depth: 16
+  shallow_depth: 4
+  type: hea
+benchmark:
+  budget_normalization: same_entangling_gate_count
+  mode: random_bp
+  objective_type: expectation_value
+device:
+  diff_fallback_policy: error
+  diff_method: backprop
+  fallback_diff_method: parameter-shift
+  name: default.qubit
+  shots: null
+experiment:
+  description: Smoke test for random-parameter BP benchmark.
+  group: smoke_random_parameter_bp
+  name: stage1a_random_bp_smoke
+initialization:
+  distribution: uniform
+  high: 3.141592653589793
+  low: -3.141592653589793
+  strategy: full_random_centered
+logging:
+  gradient_logging_mode: raw
+  online_aggregation: true
+  raw_gradient_format: csv
+  save_raw_gradients: true
+metadata:
+  config_hash: 526b763eb63ecb6a013b92210c8a25406d2fbd8e76d2e513c5b6dbaa6fd2acdf
+  numpy_version: 2.4.6
+  pandas_version: 2.2.3
+  pennylane_version: 0.44.1
+  platform: Windows-10-10.0.26200-SP0
+  python_version: 3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938
+    64 bit (AMD64)]
+  pyyaml_version: 6.0.2
+  resolved_at_utc: '2026-06-27T13:45:47.951812+00:00'
+  resolver_messages: []
+metrics:
+  log_epsilon: 1.0e-30
+  near_zero_grad_threshold: 1.0e-06
+outputs:
+  layer_level_path: outputs/stage1a/stage1a_smoke_layers.csv
+  param_variance_path: outputs/stage1a/stage1a_smoke_param_variance.csv
+  plot_dir: outputs/stage1a/plots_smoke
+  raw_gradient_path: outputs/stage1a/stage1a_smoke_gradients.csv
+  run_level_path: outputs/stage1a/stage1a_smoke_runs.csv
+  summary_path: outputs/stage1a/stage1a_smoke_summary.csv
+safety:
+  enforce_resource_limits: true
+  resource_limit_policy: strict
+  resource_overrides:
+    max_qubits: null
+  simulation_profile: debug
+sweep:
+  cost_types:
+  - local
+  - global
+  - hamiltonian_local
+  depths:
+  - 1
+  - 2
+  n_qubits:
+  - 4
+  seeds: 3

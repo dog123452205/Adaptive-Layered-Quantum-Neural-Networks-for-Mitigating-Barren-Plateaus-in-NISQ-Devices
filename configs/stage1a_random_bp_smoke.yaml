@@ -1,0 +1,70 @@
+experiment:
+  name: stage1a_random_bp_smoke
+  group: smoke_random_parameter_bp
+  description: "Smoke test for random-parameter BP benchmark."
+
+benchmark:
+  mode: random_bp
+  objective_type: expectation_value
+  budget_normalization: same_entangling_gate_count
+
+safety:
+  simulation_profile: debug
+  enforce_resource_limits: true
+  resource_limit_policy: strict
+  resource_overrides:
+    max_qubits: null
+  
+ansatz:
+  type: hea
+  gate_set: RX_RY_RZ_CNOT
+  encoding_type: none
+  entanglement_topologies:
+    - linear
+    - circular
+  entangler_type: cnot
+  shallow_depth: 4
+  max_depth: 16
+
+sweep:
+  n_qubits:
+    - 4
+  depths:
+    - 1
+    - 2
+  cost_types:
+    - local
+    - global
+    - hamiltonian_local
+  seeds: 3
+
+initialization:
+  strategy: full_random_centered
+  distribution: uniform
+  low: -3.141592653589793
+  high: 3.141592653589793
+
+device:
+  name: default.qubit
+  diff_method: backprop
+  diff_fallback_policy: error
+  fallback_diff_method: parameter-shift
+  shots: null
+
+metrics:
+  log_epsilon: 1.0e-30
+  near_zero_grad_threshold: 1.0e-6
+
+logging:
+  gradient_logging_mode: raw
+  save_raw_gradients: true
+  raw_gradient_format: csv
+  online_aggregation: true
+
+outputs:
+  run_level_path: outputs/stage1a/stage1a_smoke_runs.csv
+  layer_level_path: outputs/stage1a/stage1a_smoke_layers.csv
+  raw_gradient_path: outputs/stage1a/stage1a_smoke_gradients.csv
+  param_variance_path: outputs/stage1a/stage1a_smoke_param_variance.csv
+  summary_path: outputs/stage1a/stage1a_smoke_summary.csv
+  plot_dir: outputs/stage1a/plots_smoke

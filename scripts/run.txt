@@ -1,0 +1,45 @@
+python scripts\05_compare_schedulers.py --backend pennylane --dataset predictive_maintenance --max-samples 200 --n-qubits 12 --cost-type local --epochs 40 --ppo-ckpt C:\Users\ACER\Documents\PROJECT\KLTN\al_qnn_project\outputs\rl_results\simulate\ppo_q12_local_baseline\seed_1\agent.pt --dqn-ckpt C:\Users\ACER\Documents\PROJECT\KLTN\al_qnn_project\outputs\rl_results\simulate\dqn_q12_local_baseline\seed_1\agent.pt --out outputs\comparison\pennylane_q12_local_base_seed1
+
+
+
+python scripts\04_train_rl_scheduler.py --rl-path RL\PPO --agent ppo --episodes 600 --backend simulate --use-telemetry --deploy-backend pennylane --dataset predictive_maintenance --max-samples 200 --n-qubits 12 --cost-type global --initial-depth 2 --max-depth 16 --surrogate outputs\surrogate\pdm_q12_16l\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2
+
+
+python scripts\04_train_rl_scheduler.py --dataset german_credit --n-qubits 8 --cost-type local --agent ppo --seeds 0,1,2 --deploy-backend pennylane --deploy-epochs 40 --out rl_results\simulate\ppo_gc_baseline
+
+python scripts\04_train_rl_scheduler.py --dataset german_credit --n-qubits 8 --cost-type local --agent ppo --seeds 0,1,2 --deploy-backend pennylane --deploy-epochs 40 --use-telemetry --out rl_results\simulate\ppo_gc_telemetry
+
+python scripts\04_train_rl_scheduler.py --dataset german_credit --n-qubits 8 --cost-type local --agent dqn --seeds 0,1,2 --deploy-backend pennylane --deploy-epochs 40 --out rl_results\simulate\ppo_gc_baseline
+
+python scripts\04_train_rl_scheduler.py --dataset german_credit --n-qubits 8 --cost-type local --agent dqn --seeds 0,1,2 --deploy-backend pennylane --deploy-epochs 40 --use-telemetry --out rl_results\simulate\ppo_gc_telemetry
+
+
+
+
+python scripts\04_train_rl_scheduler.py --rl-path RL\PPO --agent ppo --episodes 600 --backend simulate --deploy-backend pennylane --dataset heart --max-samples 200 --n-qubits 8 --cost-type local --initial-depth 2 --max-depth 8 --surrogate outputs\surrogate\heart_q8_local\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2 --results-dir outputs\rl_results\simulate\ppo_heart_local_baseline
+ 
+python scripts\04_train_rl_scheduler.py --rl-path RL\PPO --agent ppo --episodes 600 --backend simulate --deploy-backend pennylane --dataset heart --max-samples 200 --n-qubits 8 --cost-type local --initial-depth 2 --max-depth 8 --surrogate outputs\surrogate\heart_q8_local\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2 --use-telemetry --results-dir outputs\rl_results\simulate\ppo_heart_local_telemetry
+ 
+python scripts\04_train_rl_scheduler.py --rl-path RL\DQN --agent dqn --episodes 1000 --backend simulate --deploy-backend pennylane --dataset heart --max-samples 200 --n-qubits 8 --cost-type local --initial-depth 2 --max-depth 8 --surrogate outputs\surrogate\heart_q8_local\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2 --results-dir outputs\rl_results\simulate\dqn_heart_local_baseline
+ 
+python scripts\04_train_rl_scheduler.py --rl-path RL\DQN --agent dqn --episodes 1000 --backend simulate --deploy-backend pennylane --dataset heart --max-samples 200 --n-qubits 8 --cost-type local --initial-depth 2 --max-depth 8 --surrogate outputs\surrogate\heart_q8_local\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2 --use-telemetry --results-dir outputs\rl_results\simulate\dqn_heart_local_telemetry
+
+
+
+python scripts\06_calibrate_surrogate.py --dataset heart --n-qubits 8 --cost-type local --max-samples 200 --depths 1,2,3,4,5,6,7,8 --var-samples 40 --floor-source train --out outputs\surrogate\heart_q8_local  
+
+python scripts\06_calibrate_surrogate.py --dataset parkinsons --n-qubits 8 --cost-type local --max-samples 200 --depths 1,2,3,4,5,6,7,8 --var-samples 40 --floor-source train --out outputs\surrogate\parkinsons_q8_local  
+
+
+python scripts\04_train_rl_scheduler.py --rl-path RL\PPO --agent ppo --episodes 600 --backend simulate --deploy-backend pennylane --dataset predictive_maintenance --max-samples 200 --n-qubits 12 --cost-type local --initial-depth 2 --max-depth 12 --surrogate outputs\surrogate\pdm_q12_local_zyz\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2 --results-dir outputs\rl_results\simulate\ppo_pdm_12_zyz_baseline
+
+python scripts\04_train_rl_scheduler.py --rl-path RL\PPO --agent ppo --episodes 600 --backend simulate --deploy-backend pennylane --dataset predictive_maintenance --max-samples 200 --n-qubits 12 --cost-type local --initial-depth 2 --max-depth 12 --surrogate outputs\surrogate\pdm_q12_local_zyz\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2 --use-telemetry --results-dir outputs\rl_results\simulate\ppo_pdm_12_zyz_telemetry
+
+python scripts\04_train_rl_scheduler.py --rl-path RL\DQN --agent dqn --episodes 1000 --backend simulate --deploy-backend pennylane --dataset predictive_maintenance --max-samples 200 --n-qubits 12 --cost-type local --initial-depth 2 --max-depth 12 --surrogate outputs\surrogate\pdm_q12_local_zyz\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2 --results-dir outputs\rl_results\simulate\dqn_pdm_12_zyz_baseline
+
+python scripts\04_train_rl_scheduler.py --rl-path RL\DQN --agent dqn --episodes 1000 --backend simulate --deploy-backend pennylane --dataset predictive_maintenance --max-samples 200 --n-qubits 12 --cost-type local --initial-depth 2 --max-depth 12 --surrogate outputs\surrogate\pdm_q12_local_zyz\surrogate_fit.json --deploy-epochs 40 --seeds 0,1,2 --use-telemetry --results-dir outputs\rl_results\simulate\dqn_pdm_12_zyz_telemetry
+
+python scripts\05_compare_schedulers.py --dataset predictive_maintenance --n-qubits 12 --cost-type local --backend pennylane --epochs 40 --ppo-ckpt outputs\rl_results\simulate\ppo_pdm_12_zyz_baseline\seed_1\agent.pt --dqn-ckpt outputs\rl_results\simulate\dqn_pdm_12_zyz_baseline\seed_1\agent.pt --out outputs\comparison\qn_pdm_12_seed1_baseline
+
+python scripts\05_compare_schedulers.py --dataset predictive_maintenance --n-qubits 12 --cost-type local --backend pennylane --epochs 40 --ppo-ckpt outputs\rl_results\simulate\ppo_pdm_12_zyz_baseline\seed_2\agent.pt --dqn-ckpt outputs\rl_results\simulate\dqn_pdm_12_zyz_baseline\seed_2\agent.pt --out outputs\comparison\qn_pdm_12_seed2_baseline
+

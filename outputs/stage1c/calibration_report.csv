@@ -1,0 +1,3 @@
+source,runs_rows,param_variance_rows,summary_rows,has_runs,has_param_variance,has_summary,runs_path,param_variance_path,summary_path
+stage1a,36,216,12,True,True,True,outputs/stage1a/stage1a_smoke_runs.csv,outputs/stage1a/stage1a_smoke_param_variance.csv,outputs/stage1a/stage1a_smoke_summary.csv
+stage1b,15,84,3,True,True,True,outputs/stage1b/stage1b_iris_smoke_runs.csv,outputs/stage1b/stage1b_iris_smoke_param_variance.parquet,outputs/stage1b/stage1b_iris_smoke_summary.csv

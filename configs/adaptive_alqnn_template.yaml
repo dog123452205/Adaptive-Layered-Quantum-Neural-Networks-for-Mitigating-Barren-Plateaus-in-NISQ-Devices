@@ -1,0 +1,146 @@
+experiment:
+  name: adaptive_alqnn_template
+  group: stage2_stage3_rule_based_alqnn
+  description: "Rule-based AL-QNN with safe mutation state machine."
+
+safety:
+  simulation_profile: main
+  enforce_resource_limits: true
+  resource_limit_policy: strict
+  resource_overrides:
+    max_qubits: null
+
+dataset:
+  name: iris
+  task_type: classification
+  target_mode: binary_subset
+  selected_classes:
+    - 0
+    - 1
+  random_state: 42
+
+architecture:
+  model_type: al_qnn_classifier
+  ansatz_type: hea
+  gate_set: RX_RY_RZ_PARAM_ENT
+  encoding_type: angle
+
+  n_qubits: 4
+  initial_depth: 2
+  min_depth: 1
+  max_depth: 16
+
+  initial_entanglement_topology: linear
+  allowed_entanglement_topologies:
+    - none
+    - linear
+    - circular
+
+  entangler_type: ising_zz
+
+training:
+  epochs: 100
+  batch_size: 16
+  optimizer: adam
+  base_learning_rate: 0.01
+  random_seed: 42
+
+device:
+  name: default.qubit
+  diff_method: backprop
+  diff_fallback_policy: error
+  fallback_diff_method: parameter-shift
+  shots: null
+
+telemetry:
+  collect_every_epochs: 1
+  metrics:
+    - training_loss
+    - validation_loss
+    - grad_norm
+    - normalized_grad_norm
+    - mean_abs_grad
+    - near_zero_ratio
+    - layer_grad_norm
+    - layer_near_zero_ratio
+    - depth
+    - n_params
+    - n_entangling_gates
+
+calibration:
+  calibration_rules_path: outputs/stage1c/calibration_rules.json
+  threshold_priority:
+    - stage1b_task_aware_matched
+    - stage1a_random_matched
+    - n_qubit_scaled_fallback
+    - fixed_fallback
+
+scheduler:
+  enabled: true
+  type: rule_based
+  action_interval_epochs: 5
+  warmup_epochs: 10
+
+  allowed_actions:
+    - keep
+    - add_layer
+    - stop_growth
+    - soft_freeze_layer
+    - unfreeze_layer
+    - propose_prune_layer
+    - soft_mask_layer
+    - commit_prune_layer
+    - rollback_prune
+    - propose_reduce_entanglement
+    - soft_mask_entanglement
+    - commit_reduce_entanglement
+    - rollback_entanglement
+    - rollback
+
+  prune:
+    enabled: true
+    mode: soft_mask_then_commit
+
+    mask:
+      mask_mode: rotation_parameter_mask
+      mask_schedule: cosine
+      initial_value: 1.0
+      final_value: 0.0
+      anneal_steps: 5
+
+  reduce_entanglement:
+    enabled: true
+    mode: parameterized_strength_annealing
+
+    mask:
+      mask_mode: entangler_strength_mask
+      mask_schedule: cosine
+      initial_value: 1.0
+      final_value: 0.0
+      anneal_steps: 5
+
+  acceptance:
+    monitor_metric: validation_loss
+    max_relative_loss_increase: 0.02
+    require_gradient_health_recovery: true
+
+  rollback:
+    enabled: true
+    restore_parameter_state: true
+    restore_optimizer_state: true
+    restore_architecture_state: true
+    optimizer_state_policy:
+      - restore_by_param_id
+      - reset_new_params
+      - archive_removed_params
+
+logging:
+  output_dir: outputs/training/al_qnn
+  telemetry_path: outputs/training/al_qnn/telemetry.csv
+  architecture_trace_path: outputs/training/al_qnn/architecture_trace.jsonl
+  mutation_trace_path: outputs/training/al_qnn/mutation_trace.jsonl
+  parameter_registry_path: outputs/training/al_qnn/parameter_registry.jsonl
+  checkpoint_dir: outputs/training/al_qnn/checkpoints
+
+outputs:
+  resolved_config_path: outputs/resolved_configs/config_resolved.yaml

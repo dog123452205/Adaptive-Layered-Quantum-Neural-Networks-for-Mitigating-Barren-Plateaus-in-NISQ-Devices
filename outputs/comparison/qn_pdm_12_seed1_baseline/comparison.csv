@@ -1,0 +1,5 @@
+scheduler,backend,seed,epochs,acc_start,acc_end,acc_delta,f1_end,roc_auc_end,depth_start,depth_end,n_commits,n_rollbacks,act_keep,act_add_layer,act_stop_growth,act_propose_prune_layer,act_propose_reduce_entanglement
+rule,pennylane,123,40,0.5196,0.8039,0.2843,0.7753,0.9005,2,6,4,0,34,4,2,0,0
+greedy,pennylane,123,40,0.5196,0.8382,0.3186,0.8421,0.9061,2,7,5,0,35,5,0,0,0
+ppo,pennylane,123,40,0.5196,0.7402,0.2206,0.7602,0.8211,2,2,0,0,37,0,3,0,0
+dqn,pennylane,123,40,0.5196,0.8137,0.2941,0.8224,0.8897,2,3,3,0,36,1,1,0,2

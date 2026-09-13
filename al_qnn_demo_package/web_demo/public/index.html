@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AL-QNN Demo — Quantum vs Classical</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <h1>⚛ AL-QNN — Quantum vs Classical</h1>
+</header>
+
+<section class="intro" id="intro">
+  <button class="intro-toggle" id="introToggle">Introduction (click to show/hide) ▾</button>
+  <div class="intro-body" id="introBody">
+    <div class="intro-col">
+      <h3>What is quantum computing?</h3>
+      <p>Instead of classical 0/1 bits, a quantum circuit uses qubits that can be in a
+      superposition of states. Input data is encoded as rotation angles on each qubit (angle
+      encoding); quantum gates (rotation, entangling) transform that state, and measuring the
+      expectation value yields a classification probability.</p>
+    </div>
+    <div class="intro-col">
+      <h3>Why quantum for this problem?</h3>
+      <p>A quantum circuit can represent an exponentially large feature space with very few
+      qubits (n qubits ↔ 2ⁿ dimensions), a potential path to far fewer trainable parameters than
+      a classical network. AL-QNN also <b>adapts its own circuit depth</b> (adding/pruning layers)
+      to avoid <i>barren plateaus</i> — vanishing gradients in circuits that grow too deep.</p>
+    </div>
+    <div class="intro-col">
+      <h3>How does it compare to classical models?</h3>
+      <p>The panel on the right is a direct, apples-to-apples comparison: same data, same test
+      split, <b>Logistic Regression</b> (classical, not quantized) versus <b>AL-QNN</b> (quantum) —
+      accuracy <b>and real measured inference time</b> per sample, side by side.</p>
+    </div>
+  </div>
+</section>
+
+<main class="layout">
+
+  <aside class="panel left-panel">
+    <h2>Model</h2>
+    <label class="field-label" for="datasetSelect">Task</label>
+    <select id="datasetSelect"></select>
+
+    <div class="model-list" id="modelList">
+      <label class="model-row"><input type="checkbox" value="quantum" checked> <span>AL-QNN (Quantum)</span></label>
+      <label class="model-row"><input type="checkbox" value="classical" checked> <span>Logistic Regression (Classical)</span></label>
+    </div>
+
+    <label class="field-label" for="sampleIndex">Sample #</label>
+    <div class="sample-input-row">
+      <input type="number" id="sampleIndex" placeholder="Enter... (blank = random)" min="0">
+      <button id="randomBtn" title="Pick a random sample">🎲</button>
+    </div>
+    <div class="sample-range" id="sampleRange"></div>
+
+    <button id="runBtn" class="run-btn">▶ Run</button>
+  </aside>
+
+  <section class="panel center-panel">
+    <h2>Result</h2>
+    <div id="resultEmpty" class="empty-state">Pick a task and click <b>Run</b> to see a result.</div>
+    <div id="resultBody" class="hidden">
+      <div class="sample-header">
+        <span id="sampleTitle"></span>
+        <span class="true-label-badge" id="trueLabelBadge"></span>
+      </div>
+      <table class="feature-table" id="featureTable"></table>
+      <div class="verdict-cards" id="verdictCards"></div>
+    </div>
+  </section>
+
+  <aside class="panel right-panel">
+    <h2>Statistics</h2>
+    <div id="statsEmpty" class="empty-state">Pick a task to see its statistics.</div>
+    <table class="stats-table hidden" id="statsTable">
+      <thead>
+        <tr><th>Metric</th><th>Quantum</th><th>Classical</th></tr>
+      </thead>
+      <tbody id="statsBody"></tbody>
+    </table>
+  </aside>
+
+</main>
+
+<section class="charts-section">
+  <div class="panel chart-panel">
+    <h2>Metrics comparison</h2>
+    <canvas id="metricsChart" height="220"></canvas>
+  </div>
+  <div class="panel chart-panel">
+    <h2>Inference time (log scale)</h2>
+    <canvas id="timingChart" height="220"></canvas>
+  </div>
+  <div class="panel chart-panel chart-panel-wide">
+    <h2>Confidence distribution — why is AL-QNN's confidence low?</h2>
+    <p class="chart-caption">
+      Each bar is the share of test samples whose predicted P(positive) falls in that range.
+      AL-QNN is kept shallow on purpose (2–4 layers) to avoid barren plateaus — vanishing
+      gradients in deep circuits — so its output rarely strays far from 0.5. Logistic Regression
+      has no such depth constraint and pushes probabilities toward 0 or 1.
+    </p>
+    <canvas id="confidenceChart" height="180"></canvas>
+  </div>
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
