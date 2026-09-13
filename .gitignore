@@ -19,6 +19,14 @@ outputs/rl_results/
 # Thesis report draft (kept local only, not published to the repo)
 report/
 
+# Datasets - only publish AI4I (predictive maintenance) and heart on GitHub;
+# everything else in data/ stays local only
+data/*
+!data/heart.csv
+!data/prepare_heart.py
+!data/predictive_maintenance.csv
+!data/ai4i_smote_and_angle_encoding_demo.ipynb
+
 # OS
 .DS_Store
 Thumbs.db
