@@ -27,6 +27,9 @@ data/*
 !data/predictive_maintenance.csv
 !data/ai4i_smote_and_angle_encoding_demo.ipynb
 
+# Old demo package (kept local only, not published to the repo)
+al_qnn_demo_package/
+
 # OS
 .DS_Store
 Thumbs.db
