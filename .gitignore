@@ -16,6 +16,9 @@ node_modules/
 # Detailed per-run RL results (checkpoints + raw logs, regenerable by re-running training)
 outputs/rl_results/
 
+# Thesis report draft (kept local only, not published to the repo)
+report/
+
 # OS
 .DS_Store
 Thumbs.db
