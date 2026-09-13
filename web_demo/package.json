@@ -1,0 +1,13 @@
+{
+  "name": "al-qnn-web-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Custom AL-QNN demo UI (quantum vs classical) — Express backend, vanilla JS frontend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

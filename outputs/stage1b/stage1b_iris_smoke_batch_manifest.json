@@ -1,0 +1,93 @@
+{
+  "feature_names": [
+    "sepal length (cm)",
+    "sepal width (cm)",
+    "petal length (cm)",
+    "petal width (cm)"
+  ],
+  "class_names": [
+    "0",
+    "1"
+  ],
+  "scaler_feature_range": [
+    0.0,
+    3.141592653589793
+  ],
+  "feature_selection_report": {
+    "method": "first_n",
+    "selected_indices": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "selected_feature_names": [
+      "sepal length (cm)",
+      "sepal width (cm)",
+      "petal length (cm)",
+      "petal width (cm)"
+    ],
+    "variance_threshold": null,
+    "score_func": null
+  },
+  "boundary_audit_report": {
+    "enabled": true,
+    "lower": 0.0,
+    "upper": 3.141592653589793,
+    "tolerance": 1e-06,
+    "lower_boundary_fraction": 0.029166666666666667,
+    "upper_boundary_fraction": 0.020833333333333332,
+    "total_boundary_fraction": 0.05
+  },
+  "batch_overlap_matrix": [
+    [
+      16
+    ]
+  ],
+  "batches": [
+    {
+      "batch_id": 0,
+      "indices": [
+        37,
+        49,
+        34,
+        41,
+        55,
+        46,
+        2,
+        20,
+        26,
+        13,
+        57,
+        7,
+        38,
+        52,
+        24,
+        22
+      ],
+      "y": [
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        1
+      ],
+      "fixed_batch_seed": 42,
+      "class_counts": {
+        "0": 8,
+        "1": 8
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+scheduler,backend,seed,epochs,acc_start,acc_end,acc_delta,f1_end,roc_auc_end,depth_start,depth_end,n_commits,n_rollbacks,act_keep,act_add_layer,act_stop_growth,act_propose_prune_layer,act_propose_reduce_entanglement
+rule,simulate,0,100,0.0005,0.4028,0.4023,0.3947,0.7014,2,6,4,0,82,4,14,0,0
+greedy,simulate,0,100,0.0005,0.2191,0.2186,0.2147,0.6096,2,3,2,0,98,1,0,0,1
+fixed_k2,simulate,0,100,0.0005,0.1446,0.1441,0.1417,0.5723,2,2,0,0,100,0,0,0,0
+fixed_k4,simulate,0,100,0.053,0.2866,0.2335,0.2808,0.6433,4,4,0,0,100,0,0,0,0
+fixed_k6,simulate,0,100,0.0105,0.4028,0.3923,0.3947,0.7014,6,6,0,0,100,0,0,0,0
+fixed_k8,simulate,0,100,0.1571,0.498,0.3409,0.488,0.749,8,8,0,0,100,0,0,0,0
+fixed_k12,simulate,0,100,0.0797,0.6397,0.56,0.6269,0.8199,12,12,0,0,100,0,0,0,0
+fixed_k16,simulate,0,100,0.0533,0.7347,0.6814,0.72,0.8674,16,16,0,0,100,0,0,0,0
+ppo,simulate,0,100,0.0005,0.7347,0.7342,0.72,0.8674,2,16,15,0,85,14,0,0,1
+dqn,simulate,0,100,0.0005,0.498,0.4975,0.488,0.749,2,8,11,0,84,7,5,1,3

@@ -1,0 +1,96 @@
+ansatz:
+  encoding_type: angle
+  entanglement_topologies:
+  - linear
+  entangler_type: cnot
+  gate_set: RX_RY_RZ_CNOT
+  max_depth: 8
+  shallow_depth: 4
+  type: hea
+batching:
+  batch_size: 16
+  benchmark_batch_mode: fixed
+  fixed_batch_seed: 42
+  n_fixed_batches: 1
+benchmark:
+  budget_normalization: same_depth
+  mode: task_aware_bp
+  objective_type: supervised_loss
+dataset:
+  name: iris
+  random_state: 42
+  selected_classes:
+  - 0
+  - 1
+  target_mode: binary_subset
+  task_type: classification
+device:
+  diff_fallback_policy: error
+  diff_method: backprop
+  fallback_diff_method: parameter-shift
+  name: default.qubit
+  shots: null
+encoding:
+  encoding_type: angle
+  feature_map: ry_angle
+  reuploading_layers: 1
+experiment:
+  description: Smoke test for task-aware BP benchmark using fixed Iris batch.
+  group: smoke_task_aware_bp
+  name: stage1b_task_aware_iris_smoke
+initialization:
+  distribution: uniform
+  high: 3.141592653589793
+  low: -3.141592653589793
+  strategy: full_random_centered
+logging:
+  gradient_logging_mode: online_summary
+  online_aggregation: true
+  raw_gradient_format: parquet
+  save_raw_gradients: false
+loss:
+  type: binary_cross_entropy
+metadata:
+  config_hash: 9f8dfa3990ad7f4abda12e1ca06444418f0e4ad23fb91578b8d2fc4ee26b7070
+  numpy_version: 2.4.6
+  pandas_version: 2.2.3
+  pennylane_version: 0.44.1
+  platform: Windows-10-10.0.26200-SP0
+  python_version: 3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938
+    64 bit (AMD64)]
+  pyyaml_version: 6.0.2
+  resolved_at_utc: '2026-06-21T03:39:25.561761+00:00'
+  resolver_messages: []
+metrics:
+  log_epsilon: 1.0e-30
+  near_zero_grad_threshold: 1.0e-06
+outputs:
+  layer_level_path: outputs/stage1b/stage1b_iris_smoke_layers.csv
+  param_variance_path: outputs/stage1b/stage1b_iris_smoke_param_variance.parquet
+  plot_dir: outputs/stage1b/plots_iris_smoke
+  run_level_path: outputs/stage1b/stage1b_iris_smoke_runs.csv
+  summary_path: outputs/stage1b/stage1b_iris_smoke_summary.csv
+preprocessing:
+  feature_range:
+  - 0.0
+  - 3.141592653589793
+  fit_on_train_only: true
+  n_features: 4
+  scaler: minmax
+readout:
+  readout_wire: 0
+  type: single_qubit_z
+safety:
+  enforce_resource_limits: true
+  resource_limit_policy: strict
+  resource_overrides:
+    max_qubits: null
+  simulation_profile: debug
+sweep:
+  depths:
+  - 1
+  - 2
+  - 4
+  n_qubits:
+  - 4
+  seeds: 5

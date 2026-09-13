@@ -1,0 +1,117 @@
+{
+  "feature_names": [
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    "Tool wear [min]",
+    "Type_L",
+    "Type_M",
+    "Type_H",
+    "pad_0",
+    "pad_1",
+    "pad_2",
+    "pad_3"
+  ],
+  "class_names": [
+    "No_Failure",
+    "Failure"
+  ],
+  "scaler_feature_range": [
+    0.0,
+    3.141592653589793
+  ],
+  "feature_selection_report": {
+    "method": "first_n",
+    "selected_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "selected_feature_names": [
+      "Air temperature [K]",
+      "Process temperature [K]",
+      "Rotational speed [rpm]",
+      "Torque [Nm]",
+      "Tool wear [min]",
+      "Type_L",
+      "Type_M",
+      "Type_H",
+      "pad_0",
+      "pad_1",
+      "pad_2",
+      "pad_3"
+    ],
+    "variance_threshold": null,
+    "score_func": null
+  },
+  "boundary_audit_report": {
+    "enabled": true,
+    "lower": 0.0,
+    "upper": 3.141592653589793,
+    "tolerance": 1e-06,
+    "lower_boundary_fraction": 0.5010972222222222,
+    "upper_boundary_fraction": 0.08340277777777778,
+    "total_boundary_fraction": 0.5845
+  },
+  "batch_overlap_matrix": [
+    [
+      16
+    ]
+  ],
+  "batches": [
+    {
+      "batch_id": 0,
+      "indices": [
+        4176,
+        2628,
+        5146,
+        4414,
+        1197,
+        558,
+        510,
+        3154,
+        4305,
+        2684,
+        529,
+        4632,
+        4567,
+        3913,
+        5853,
+        2594
+      ],
+      "y": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "fixed_batch_seed": 42,
+      "class_counts": {
+        "0": 15,
+        "1": 1
+      }
+    }
+  ]
+}

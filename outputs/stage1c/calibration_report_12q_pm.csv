@@ -1,0 +1,3 @@
+source,runs_rows,param_variance_rows,summary_rows,has_runs,has_param_variance,has_summary,runs_path,param_variance_path,summary_path
+stage1a,24,1080,8,True,True,True,outputs/stage1a/stage1a_12q_pm_runs.csv,outputs/stage1a/stage1a_12q_pm_param_variance.csv,outputs/stage1a/stage1a_12q_pm_summary.csv
+stage1b,12,540,4,True,True,True,outputs/stage1b/stage1b_12q_pm_runs.csv,outputs/stage1b/stage1b_12q_pm_param_variance.parquet,outputs/stage1b/stage1b_12q_pm_summary.csv

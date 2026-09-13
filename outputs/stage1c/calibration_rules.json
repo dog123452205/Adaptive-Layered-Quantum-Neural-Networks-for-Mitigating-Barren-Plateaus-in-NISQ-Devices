@@ -1,0 +1,81 @@
+{
+  "version": "stage1c_v1",
+  "created_at_utc": "2026-07-04T20:10:20.949463+00:00",
+  "experiment_name": "stage1c_calibration_v1",
+  "experiment_group": "calibration_v1",
+  "pipeline_scope": "v1_simulator_first",
+  "threshold_priority": [
+    "stage1b_task_aware_matched",
+    "stage1a_random_matched",
+    "n_qubit_scaled_fallback",
+    "fixed_fallback"
+  ],
+  "matching_keys": [
+    "benchmark_mode",
+    "dataset_name",
+    "encoding_type",
+    "ansatz_type",
+    "gate_set",
+    "entanglement_topology",
+    "entangler_type",
+    "n_qubits",
+    "depth",
+    "loss_type",
+    "cost_type"
+  ],
+  "component_threshold_mode": "variance_scaled",
+  "threshold_quantile": 0.05,
+  "component_threshold_beta": 0.5,
+  "fallbacks": {
+    "fixed_component_grad_threshold": 1e-06,
+    "fixed_normalized_grad_norm_threshold": 1e-06,
+    "variance_epsilon": 1e-30
+  },
+  "runtime_diagnosis_rule": {
+    "suspected_barren_plateau": "offline_bp_risk_high AND runtime_gradient_collapse AND task_unsolved",
+    "converged": "runtime_gradient_collapse AND task_solved",
+    "suspected_local_minimum": "task_unsolved AND NOT runtime_gradient_collapse"
+  },
+  "artifact_paths": {
+    "bp_risk_table_path": "outputs/stage1c/bp_risk_table.parquet",
+    "threshold_calibration_table_path": "outputs/stage1c/threshold_calibration_table.parquet",
+    "calibration_report_path": "outputs/stage1c/calibration_report.csv"
+  },
+  "risk_counts": {
+    "low": 7,
+    "high": 4,
+    "medium": 4
+  },
+  "source_report": [
+    {
+      "source": "stage1a",
+      "runs_rows": 36,
+      "param_variance_rows": 216,
+      "summary_rows": 12,
+      "has_runs": true,
+      "has_param_variance": true,
+      "has_summary": true,
+      "runs_path": "outputs/stage1a/stage1a_smoke_runs.csv",
+      "param_variance_path": "outputs/stage1a/stage1a_smoke_param_variance.csv",
+      "summary_path": "outputs/stage1a/stage1a_smoke_summary.csv"
+    },
+    {
+      "source": "stage1b",
+      "runs_rows": 15,
+      "param_variance_rows": 84,
+      "summary_rows": 3,
+      "has_runs": true,
+      "has_param_variance": true,
+      "has_summary": true,
+      "runs_path": "outputs/stage1b/stage1b_iris_smoke_runs.csv",
+      "param_variance_path": "outputs/stage1b/stage1b_iris_smoke_param_variance.parquet",
+      "summary_path": "outputs/stage1b/stage1b_iris_smoke_summary.csv"
+    }
+  ],
+  "limitations": [
+    "Stage 1C v1 uses fixed-batch Stage 1B calibration if Stage 1B is enabled.",
+    "Stage 1C v1 does not decompose data-induced gradient variability across multiple batches.",
+    "Thresholds are empirical scheduler aids, not formal proofs of barren plateau.",
+    "Runtime diagnosis must combine offline risk, runtime gradient collapse, and task state."
+  ]
+}

@@ -1,0 +1,111 @@
+experiment:
+  name: stage1b_task_aware_iris_smoke
+  group: smoke_task_aware_bp
+  description: "Smoke test for task-aware BP benchmark using fixed Iris batch."
+
+benchmark:
+  mode: task_aware_bp
+  objective_type: supervised_loss
+  budget_normalization: same_depth
+
+safety:
+  simulation_profile: debug
+  enforce_resource_limits: true
+  resource_limit_policy: strict
+  resource_overrides:
+    max_qubits: null
+
+dataset:
+  name: iris
+  task_type: classification
+  target_mode: binary_subset
+  selected_classes:
+    - 0
+    - 1
+  test_size: 0.2
+  validation_size: 0.2
+  random_state: 42
+
+preprocessing:
+  scaler: minmax
+  fit_on_train_only: true
+  feature_range:
+    - 0.0
+    - 3.141592653589793
+  n_features: 4
+
+  boundary_audit:
+    enabled: true
+    boundary_tolerance: 1.0e-6
+
+encoding:
+  encoding_type: angle
+  feature_map: ry_angle
+  reuploading_layers: 1
+
+ansatz:
+  type: hea
+  gate_set: RX_RY_RZ_CNOT
+  encoding_type: angle
+  entanglement_topologies:
+    - linear
+  entangler_type: cnot
+  shallow_depth: 4
+  max_depth: 8
+
+sweep:
+  n_qubits:
+    - 4
+  depths:
+    - 1
+    - 2
+    - 4
+  seeds: 5
+
+loss:
+  type: binary_cross_entropy
+
+readout:
+  type: single_qubit_z
+  readout_wire: 0
+
+batching:
+  benchmark_batch_mode: fixed
+  sampling_mode: stratified_partition
+  batch_size: 16
+  n_fixed_batches: 1
+  fixed_batch_seed: 42
+  allow_overlap: false
+  min_per_class: 1
+
+initialization:
+  strategy: full_random_centered
+  distribution: uniform
+  low: -3.141592653589793
+  high: 3.141592653589793
+
+device:
+  name: default.qubit
+  diff_method: backprop
+  diff_fallback_policy: error
+  fallback_diff_method: parameter-shift
+  shots: null
+
+metrics:
+  log_epsilon: 1.0e-30
+  near_zero_grad_threshold: 1.0e-6
+  loss_epsilon: 1.0e-7
+
+logging:
+  gradient_logging_mode: online_summary
+  save_raw_gradients: false
+  raw_gradient_format: parquet
+  online_aggregation: true
+
+outputs:
+  run_level_path: outputs/stage1b/stage1b_iris_smoke_runs.csv
+  layer_level_path: outputs/stage1b/stage1b_iris_smoke_layers.csv
+  param_variance_path: outputs/stage1b/stage1b_iris_smoke_param_variance.parquet
+  summary_path: outputs/stage1b/stage1b_iris_smoke_summary.csv
+  batch_manifest_path: outputs/stage1b/stage1b_iris_smoke_batch_manifest.json
+  plot_dir: outputs/stage1b/plots_iris_smoke

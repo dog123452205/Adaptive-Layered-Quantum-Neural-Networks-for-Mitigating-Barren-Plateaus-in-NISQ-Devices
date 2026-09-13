@@ -1,0 +1,31 @@
+{
+  "dataset": "heart",
+  "friendly": "Heart Disease (Cleveland)",
+  "n_qubits": 8,
+  "n_train": 136,
+  "n_val": 83,
+  "n_test": 55,
+  "quantum": {
+    "label": "AL-QNN (đã lượng tử hóa)",
+    "accuracy": 0.6182,
+    "precision": 0.75,
+    "recall": 0.3333,
+    "f1": 0.4615,
+    "auc": 0.7434,
+    "final_depth": 4,
+    "n_qubits": 8,
+    "avg_infer_ms": 33.4719,
+    "total_infer_ms": 1840.96
+  },
+  "classical": {
+    "label": "Logistic Regression (chưa lượng tử hóa)",
+    "accuracy": 0.8727,
+    "precision": 0.9167,
+    "recall": 0.8148,
+    "f1": 0.8627,
+    "auc": 0.918,
+    "n_features": 8,
+    "avg_infer_ms": 0.1439,
+    "total_infer_ms": 7.92
+  }
+}

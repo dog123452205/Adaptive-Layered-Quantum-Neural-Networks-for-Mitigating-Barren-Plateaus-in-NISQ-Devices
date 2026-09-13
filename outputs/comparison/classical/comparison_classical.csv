@@ -1,0 +1,4 @@
+scheduler,backend,dataset,seed,epochs,acc_start,acc_end,acc_delta,f1_end,roc_auc_end,depth_start,depth_end,n_commits,n_rollbacks,fit_time_s
+classical_logreg,classical,heart,123,,,0.8434,,0.8219,0.9297,0,0,0,0,0.0111
+classical_random_forest,classical,heart,123,,,0.8554,,0.8421,0.9158,0,0,0,0,0.3475
+classical_svm,classical,heart,123,,,0.8554,,0.8333,0.9425,0,0,0,0,0.0118

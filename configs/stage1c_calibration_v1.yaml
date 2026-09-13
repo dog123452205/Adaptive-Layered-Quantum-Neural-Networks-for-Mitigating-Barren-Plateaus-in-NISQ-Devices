@@ -1,0 +1,65 @@
+experiment:
+  name: stage1c_calibration_v1
+  group: calibration_v1
+  description: "Build scheduler-readable calibration artifacts from Stage 1A and Stage 1B outputs."
+
+inputs:
+  stage1a:
+    enabled: true
+    runs_path: outputs/stage1a/stage1a_smoke_runs.csv
+    param_variance_path: outputs/stage1a/stage1a_smoke_param_variance.csv
+    summary_path: outputs/stage1a/stage1a_smoke_summary.csv
+
+  stage1b:
+    enabled: true
+    runs_path: outputs/stage1b/stage1b_iris_smoke_runs.csv
+    param_variance_path: outputs/stage1b/stage1b_iris_smoke_param_variance.parquet
+    summary_path: outputs/stage1b/stage1b_iris_smoke_summary.csv
+
+calibration:
+  version: stage1c_v1
+
+  # Threshold construction
+  threshold_quantile: 0.05
+  component_threshold_beta: 0.5
+  component_threshold_mode: variance_scaled
+
+  variance_epsilon: 1.0e-30
+  min_component_grad_threshold: 1.0e-12
+  min_normalized_grad_norm_threshold: 1.0e-12
+
+  # Fixed fallback values for Stage 2 if no matched calibration is found
+  fixed_component_grad_threshold: 1.0e-6
+  fixed_normalized_grad_norm_threshold: 1.0e-6
+
+  # Risk estimation
+  high_risk_variance_quantile: 0.25
+  medium_risk_variance_quantile: 0.50
+  high_risk_near_zero_ratio: 0.85
+  medium_risk_near_zero_ratio: 0.70
+
+  # Runtime matching policy for Stage 2
+  threshold_priority:
+    - stage1b_task_aware_matched
+    - stage1a_random_matched
+    - n_qubit_scaled_fallback
+    - fixed_fallback
+
+  matching_keys:
+    - benchmark_mode
+    - dataset_name
+    - encoding_type
+    - ansatz_type
+    - gate_set
+    - entanglement_topology
+    - entangler_type
+    - n_qubits
+    - depth
+    - loss_type
+    - cost_type
+
+outputs:
+  calibration_rules_path: outputs/stage1c/calibration_rules.json
+  bp_risk_table_path: outputs/stage1c/bp_risk_table.parquet
+  threshold_calibration_table_path: outputs/stage1c/threshold_calibration_table.parquet
+  calibration_report_path: outputs/stage1c/calibration_report.csv

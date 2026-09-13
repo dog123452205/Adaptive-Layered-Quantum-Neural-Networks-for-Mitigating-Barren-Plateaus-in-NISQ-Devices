@@ -1,0 +1,25 @@
+{
+  "floor": {
+    "f_min": 0.018557638830251556,
+    "f_max": 0.6581827116844174,
+    "a": 0.010000047997089308
+  },
+  "var": {
+    "lv0": -9.301768355077769,
+    "b": 0.17145846949407517,
+    "c": 0.0,
+    "fit_min_depth": 3,
+    "n_points_used": 6
+  },
+  "rmse": {
+    "floor": 0.017401606723901474,
+    "logvar": 0.11970553329609267,
+    "logvar_all_depths": 0.27118382905649
+  },
+  "meta": {
+    "n_qubits": 6,
+    "cost_type": "local",
+    "topology": "linear",
+    "dataset": "predictive_maintenance"
+  }
+}
