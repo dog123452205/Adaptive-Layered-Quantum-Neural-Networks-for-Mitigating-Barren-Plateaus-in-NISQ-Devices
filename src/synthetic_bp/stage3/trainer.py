@@ -7,6 +7,14 @@ Mỗi epoch: train -> đánh giá -> tiến triển mask đang chạy -> (đúng
 
 Trainer này KHÔNG biết scheduler là rule-based hay RL (nhờ SchedulerBase) -> dùng chung
 cho cả paper 1 (rule) và V2 (RL). Đồng thời là RUNTIME cho RL backend.
+
+Ghi chú xuất xứ (2026-09-16): nội dung file này là bản của Lê Hoàng Nam
+(github.com/LeNam123456/AL_QNN), KHÔNG phải bản do Lam Vuong tự viết, dù
+"environment and telemetry integration" ghi nhận là trách nhiệm Lam Vuong
+trong bảng nhóm (project_management.tex, tab:team, Approach 4-5). Dùng bản
+này (Telemetry Engine tắt mặc định) vì nó đúng là trainer đã chạy ra
+tab:ai4i/tab:heart. Bản gốc do Lam Vuong viết (Telemetry Engine bật mặc định)
+được lưu ở external/rl_theory_improvements/src/synthetic_bp/stage3/trainer.py.
 """
 from __future__ import annotations
 from pathlib import Path

@@ -14,6 +14,16 @@ Nhận MutationRequest từ Scheduler (Stage 2) và thực thi VÒNG ĐỜI nhi�
 
 Soft-mask: alpha(t) = 1/2 (1 + cos(pi * t / T)), t = 0..T  -> alpha đi từ 1 về 0.
 Tham số lớp mục tiêu suy giảm: theta_eff = alpha(t) * theta (do backend áp).
+
+Ghi chú xuất xứ (2026-09-16): nội dung file này là bản của Lê Hoàng Nam
+(github.com/LeNam123456/AL_QNN), KHÔNG phải bản do Lam Vuong tự viết, dù
+"mutation engine" ghi nhận là trách nhiệm Lam Vuong trong WBS
+(project_management.tex) — dù "safe mutation (soft-masking, commit/rollback
+registry)" cũng là trách nhiệm chính thức của Le Hoang Nam (Approach 2-3,
+tab:team), nên phần này ranh giới trách nhiệm vốn đã chồng lấn. Dùng bản này
+(add_layer commit ngay, không rollback) vì đúng là code đã tạo ra
+tab:ai4i/tab:heart. Bản gốc do Lam Vuong viết (add_layer có ramp+rollback an
+toàn) được lưu ở external/rl_theory_improvements/src/synthetic_bp/stage3/mutation_engine.py.
 """
 from __future__ import annotations
 import math

@@ -20,6 +20,13 @@ Ví dụ:
   # train THẲNG trên pennylane thật (rất chậm — giảm episodes/total-epochs):
   python scripts/04_train_rl_scheduler.py --rl-path ...\\RL\\PPO --agent ppo ^
       --episodes 30 --total-epochs 20 --backend pennylane --dataset cancer
+
+Ghi chú xuất xứ (2026-09-16): nội dung file này là bản của Lê Hoàng Nam
+(github.com/LeNam123456/AL_QNN), KHÔNG phải bản do Lam Vuong tự viết, dù đây
+là module "Agent training" ghi nhận thuộc trách nhiệm Lam Vuong trong WBS
+(project_management.tex). Dùng bản này vì nó đúng là code đã tạo ra checkpoint
+đứng sau kết quả cuối tab:ai4i/tab:heart. Bản gốc do Lam Vuong viết được lưu ở
+external/rl_theory_improvements/scripts/04_train_rl_scheduler.py.
 """
 from __future__ import annotations
 import argparse

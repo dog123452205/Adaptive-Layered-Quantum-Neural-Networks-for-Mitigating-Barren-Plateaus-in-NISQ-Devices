@@ -10,6 +10,14 @@ PennyLane. Hai hiện thực:
 
 Cả hai giữ TOÀN BỘ trạng thái model (params, depth, mask theo lớp, cường độ entangler)
 để Parameter Registry chụp/khôi phục được.
+
+Ghi chú xuất xứ (2026-09-16): nội dung file này là bản của Lê Hoàng Nam
+(github.com/LeNam123456/AL_QNN), KHÔNG phải bản do Lam Vuong tự viết, dù đây
+thuộc "computational two-simulator design" ghi nhận là trách nhiệm Lam Vuong
+trong bảng nhóm (project_management.tex, tab:team, Approach 4-5). Dùng bản
+này vì nó đúng là code đã tạo ra tab:ai4i/tab:heart (batch_sampler, ngưỡng
+Youden's-J). Bản gốc do Lam Vuong viết được lưu ở
+external/rl_theory_improvements/src/synthetic_bp/stage3/circuit_backend.py.
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod
