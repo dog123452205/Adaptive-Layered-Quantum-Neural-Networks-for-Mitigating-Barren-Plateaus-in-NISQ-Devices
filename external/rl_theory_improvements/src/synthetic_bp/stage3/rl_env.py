@@ -8,6 +8,14 @@ Chọn backend qua tham số `backend`:
 
 Cả hai cùng interface CircuitBackend nên MutationEngine/ParameterRegistry/encoder
 dùng chung, agent train ở đây deploy thẳng làm scheduler.
+
+Mỗi step = MỘT quyết định (không còn quét lần lượt từng layer trong 1 "round" rồi
+mới train + phát reward ở step cuối). Trước đây agent ra `depth` action/round nhưng
+chỉ action ở step cuối round nhận reward != 0 -> credit assignment rất thưa/trễ, đặc
+biệt hại cho DQN (TD 1 bước phải bootstrap qua nhiều step reward=0 mới lan được tín
+hiệu). Nay: mỗi step đều train k_epochs + phát reward ngay, target layer (cho PRUNE)
+lấy theo layer_grad_variance thấp nhất (weakest_layer_pos) — khớp đúng cách
+RLScheduler chọn layer lúc deploy, tránh lệch phân phối train/deploy.
 """
 from __future__ import annotations
 import numpy as np
@@ -19,7 +27,9 @@ from src.synthetic_bp.stage3.telemetry_engine import TelemetryEngine, TeleConfig
 from src.synthetic_bp.stage2.scheduler_base import (
     MACRO_ACTIONS, A_KEEP, A_ADD, A_STOP, A_PRUNE, A_REDUCE,
 )
-from src.synthetic_bp.stage2.rl_scheduler import encode_layer_state, STATE_DIM, A_IDX
+from src.synthetic_bp.stage2.rl_scheduler import (
+    encode_layer_state, STATE_DIM, A_IDX, weakest_layer_pos,
+)
 
 DEFAULT_W = dict(w1=0.5, w2=5.0, w3=0.05, w4=0.02, w5=1.0, w6=0.5)
 
@@ -28,10 +38,11 @@ class Stage3RLEnv:
     def __init__(self, n_qubits=4, initial_depth=2, max_depth=16, min_depth=1,
                  cost_type="local", topology="linear", tau=0.1, calibration=None,
                  k_epochs=5, total_epochs=60, mask_epochs_T=5,
+                 max_relative_loss_increase=0.02,
                  weights=None, seed=0,
                  backend="simulate", data=None,
                  entangler_type="cnot", lr=0.01, surrogate=None,
-                 use_telemetry=False, telemetry_cfg=None):
+                 use_telemetry=True, telemetry_cfg=None):
         self.cfg = dict(n_qubits=n_qubits, initial_depth=initial_depth,
                         max_depth=max_depth, cost_type=cost_type,
                         topology=topology, seed=seed)
@@ -42,6 +53,7 @@ class Stage3RLEnv:
         self.tau = self._resolve_tau(initial_depth)
         self.k_epochs, self.total_epochs = k_epochs, total_epochs
         self.mask_epochs_T = mask_epochs_T
+        self.max_relative_loss_increase = max_relative_loss_increase
         self.w = dict(DEFAULT_W if weights is None else weights)
         self.rng = np.random.default_rng(seed)
         # --- lựa chọn backend ---
@@ -50,7 +62,8 @@ class Stage3RLEnv:
         self.entangler_type = entangler_type
         self.lr = lr
         self.surrogate = surrogate
-        # Telemetry Engine: mặc định TẮT -> hành vi cũ giữ nguyên (checkpoint/kết quả cũ không đổi).
+        # Telemetry Engine: mặc định BẬT (khớp mô hình hệ thống trong báo cáo: TE luôn
+        # hoạt động). Truyền use_telemetry=False tường minh để tái lập baseline cũ.
         self.te = TelemetryEngine(telemetry_cfg or TeleConfig()) if use_telemetry else None
         self._te_out = None
         if backend == "pennylane" and data is None:
@@ -69,8 +82,7 @@ class Stage3RLEnv:
                 n_qubits=self.cfg["n_qubits"], initial_depth=self.cfg["initial_depth"],
                 max_depth=self.cfg["max_depth"], topology=self.cfg["topology"],
                 entangler_type=self.entangler_type, cost_type=self.cfg["cost_type"],
-                lr=self.lr, seed=self.cfg["seed"],
-                batch_sampler=d.get("batch_sampler", None))
+                lr=self.lr, seed=self.cfg["seed"])
         return SimulateBackend(**self.cfg, surrogate=self.surrogate)
 
     def reset(self):
@@ -78,13 +90,14 @@ class Stage3RLEnv:
         self.reg = ParameterRegistry(self.b)
         ev = self.b.evaluate()
         self.reg.commit_checkpoint(ev["validation_loss"])
-        self.eng = MutationEngine(self.b, self.reg, mask_epochs_T=self.mask_epochs_T)
-        self.layer_ptr = 0
+        self.eng = MutationEngine(self.b, self.reg, mask_epochs_T=self.mask_epochs_T,
+                                  max_relative_loss_increase=self.max_relative_loss_increase)
         self.epoch = 0
         self._growth_locked = False
         if self.te is not None:
             self.te.reset()
         self._te_out = None
+        self._last_rb = 0
         self._prev = self._metrics()
         return self._encode(), self._mask()
 
@@ -94,8 +107,17 @@ class Stage3RLEnv:
                     depth=g["depth"], nent=g["n_entangling_gates"], nzr=g["near_zero_ratio"])
 
     def _mask(self):
-        depth = self.b.depth
         m = np.ones(len(MACRO_ACTIONS), dtype=bool)
+        if self.eng.busy:
+            # đang trong cửa sổ masking (ramp) của 1 mutation chưa resolve -> submit()
+            # mới sẽ bị eng lặng lẽ bỏ qua (xem MutationEngine.submit: `if self.busy: return`).
+            # Trước đây mask không phản ánh điều này -> agent có thể chọn PRUNE/ADD/REDUCE
+            # trong lúc bận, action bị drop nhưng vẫn được lưu vào buffer như thể có tác
+            # dụng -> nhiễu dữ liệu train. Chỉ cho KEEP cho tới khi mutation hiện tại resolve.
+            m[:] = False
+            m[A_IDX[A_KEEP]] = True
+            return m
+        depth = self.b.depth
         if depth >= self.max_depth or self._growth_locked:
             m[A_IDX[A_ADD]] = False
         if depth <= self.min_depth:
@@ -157,49 +179,47 @@ class Stage3RLEnv:
         g = self.b.global_metrics()
         g["validation_loss"] = self.b.evaluate()["validation_loss"]
         self.tau = self._resolve_tau(g.get("depth", self.b.depth))  # τ động theo depth
-        return encode_layer_state(self.b.layer_metrics(), g, self.tau,
-                                  self.layer_ptr, self.epoch, self.total_epochs,
-                                  self._growth_locked)
+        layers = self.b.layer_metrics()
+        pos = weakest_layer_pos(layers)
+        return encode_layer_state(layers, g, self.tau, pos, self.epoch,
+                                  self.total_epochs, self._growth_locked)
 
     def step(self, action_idx):
         action = MACRO_ACTIONS[action_idx]
         layers = self.b.layer_metrics()
-        target = min(self.layer_ptr, len(layers) - 1)
         vloss = self.b.evaluate()["validation_loss"]
 
         if action == A_STOP:
             self._growth_locked = True
-        # đưa quyết định cho mutation engine (nếu không bận)
+        # đưa quyết định cho mutation engine (nếu không bận) — target luôn là lớp
+        # yếu nhất (khớp encode/deploy), _mask() đã đảm bảo action != KEEP chỉ được
+        # chọn khi eng KHÔNG bận nên submit() ở đây không bao giờ bị lặng lẽ bỏ qua.
         if not self.eng.busy:
-            tgt = layers[target]["layer_id"] if action == A_PRUNE else None
+            tgt = layers[weakest_layer_pos(layers)]["layer_id"] if action == A_PRUNE else None
             self.eng.submit(action, tgt, vloss)
 
-        self.layer_ptr += 1
-        reward, done, info = 0.0, False, {"action": action}
+        # train k epoch + tiến triển mutation — MỖI step, không đợi quét hết layer.
+        for _ in range(self.k_epochs):
+            self.b.train_epoch()
+            self.eng.on_epoch(self.b.evaluate()["validation_loss"])
+        self.epoch += self.k_epochs
 
-        if self.layer_ptr >= self.b.depth:
-            # train k epoch + tiến triển mutation
-            for _ in range(self.k_epochs):
-                self.b.train_epoch()
-                self.eng.on_epoch(self.b.evaluate()["validation_loss"])
-            self.epoch += self.k_epochs
-            cur = self._metrics()
-            if self.te is not None:
-                lnzr = [l["layer_near_zero_ratio"] for l in self.b.layer_metrics()]
-                self._te_out = self.te.step(
-                    sgv=cur["sgv"], nzr=cur["nzr"], vloss=cur["vloss"],
-                    layer_nzr=lnzr, depth=cur["depth"],
-                    offline_risk=self._resolve_risk(cur["depth"]))
-                info.update(self._te_out.labels)
-                info["te_p_solved"] = self._te_out.features["p_solved"]
-                info["te_p_converged"] = self._te_out.features["p_converged"]
-            reward = self._reward(self._prev, cur)
-            info.update(cur)
-            info["rollbacks"] = self.reg.n_rollbacks
-            self._prev = cur
-            self.layer_ptr = 0
-            if self.epoch >= self.total_epochs:
-                done = True
+        cur = self._metrics()
+        info = {"action": action}
+        if self.te is not None:
+            lnzr = [l["layer_near_zero_ratio"] for l in self.b.layer_metrics()]
+            self._te_out = self.te.step(
+                sgv=cur["sgv"], nzr=cur["nzr"], vloss=cur["vloss"],
+                layer_nzr=lnzr, depth=cur["depth"],
+                offline_risk=self._resolve_risk(cur["depth"]))
+            info.update(self._te_out.labels)
+            info["te_p_solved"] = self._te_out.features["p_solved"]
+            info["te_p_converged"] = self._te_out.features["p_converged"]
+        reward = self._reward(self._prev, cur)
+        info.update(cur)
+        info["rollbacks"] = self.reg.n_rollbacks
+        self._prev = cur
+        done = self.epoch >= self.total_epochs
         return self._encode(), reward, done, self._mask(), info
 
     def _reward(self, prev, cur):
@@ -208,10 +228,16 @@ class Stage3RLEnv:
         self._last_rb = self.reg.n_rollbacks
         # gate: khi TE báo đã hội tụ, tắt dần thưởng variance/nzr (chống phá mô hình tốt)
         g = self._te_out.gate if self._te_out is not None else {"w1_var": 1.0, "w6_nzr": 1.0}
+        # nzr dùng DELTA (cur - prev) như 5 số hạng còn lại, KHÔNG dùng giá trị tuyệt đối.
+        # Trước đây `- w6 * cur["nzr"]` phạt cố định mỗi step theo MỨC near-zero-ratio
+        # hiện tại (thường ~0.3-0.5, không bao giờ về 0 thật) bất kể agent đang cải
+        # thiện hay không -> kéo return âm dai dẳng ngay cả khi policy đã hội tụ tốt
+        # (khớp với return_last100 âm quan sát được trên mọi run baseline/telemetry).
+        # Delta đúng ngữ nghĩa "thưởng khi nzr giảm, phạt khi nzr tăng" như các số hạng khác.
         r = (g["w1_var"] * w["w1"] * (np.log10(max(cur["sgv"], 1e-12)) - np.log10(max(prev["sgv"], 1e-12)))
              - w["w2"] * (cur["vloss"] - prev["vloss"])
              - w["w3"] * (cur["depth"] - prev["depth"])
              - w["w4"] * (cur["nent"] - prev["nent"])
              - w["w5"] * d_rollback
-             - g["w6_nzr"] * w["w6"] * cur["nzr"])
+             - g["w6_nzr"] * w["w6"] * (cur["nzr"] - prev["nzr"]))
         return float(r)

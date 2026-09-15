@@ -27,6 +27,17 @@ def _safe_log10(x, eps=1e-12):
     return float(np.log10(max(float(x), eps)))
 
 
+def weakest_layer_pos(layers: list[dict]) -> int:
+    """Vị trí (0-based, trong danh sách truyền vào) của lớp có layer_grad_variance
+    thấp nhất -> khả năng dính barren plateau nặng nhất, ưu tiên xét hành động.
+    Dùng CHUNG giữa Stage3RLEnv (train) và RLScheduler (deploy) để tránh lệch phân
+    phối state giữa hai pha."""
+    if not layers:
+        return 0
+    gvs = [l.get("layer_grad_variance", float("inf")) for l in layers]
+    return int(np.argmin(gvs))
+
+
 def encode_layer_state(layers: list[dict], g: dict, tau: float, layer_idx: int,
                        epoch: int, total_epochs: int, growth_locked: bool) -> np.ndarray:
     """RuntimeState (cho 1 lớp) -> vector 16 chiều. Dùng chung train & deploy."""
@@ -67,22 +78,30 @@ class RLScheduler(SchedulerBase):
     Scheduler điều khiển bằng agent RL.
 
     agent: bất kỳ đối tượng nào có .act(state, mask) -> action_idx (DQN/PPO).
-           (PPO torch trả tuple; truyền greedy_fn nếu cần lấy action xác định.)
+           (PPO torch trả tuple.) Nếu agent.act() nhận thêm tham số `greedy`
+           (PPOAgent/DQNAgent trong RL/PPO, RL/DQN đều hỗ trợ) thì mặc định
+           RLScheduler gọi greedy=True: deploy phải quyết định ổn định/tái lập
+           được, không nên còn sample ngẫu nhiên (PPO) hay epsilon dư (DQN,
+           eps_end mặc định 0.05 không bao giờ về 0) như lúc train.
     """
 
     def __init__(self, agent, tau: float = 0.1, total_epochs: int = 100,
                  warmup_epochs: int = 10, action_interval_epochs: int = 5,
-                 cooldown_epochs: int = 5, act_fn=None, calibration=None):
+                 cooldown_epochs: int = 5, act_fn=None, calibration=None,
+                 greedy: bool = True):
         """
         calibration: đường dẫn calibration_rules.json (Stage 1C) HOẶC dict đã load.
                      Nếu có -> tau tra ĐỘNG theo cấu hình mạch (n_qubits, topology,
                      cost_type, depth). Nếu None -> dùng `tau` cố định (tương thích cũ).
+        greedy: True -> hỏi agent action xác định (argmax) thay vì sample/epsilon.
+                Đặt False nếu cố ý muốn deploy stochastic (vd đánh giá exploration).
         """
         super().__init__(warmup_epochs, action_interval_epochs, cooldown_epochs)
         self.agent = agent
         self.tau_default = tau           # fallback khi không tra được
         self.total_epochs = total_epochs
         self.act_fn = act_fn or self._default_act
+        self.greedy = greedy
         self._growth_locked = False
         self._calibration = self._load_calibration(calibration)
 
@@ -116,8 +135,13 @@ class RLScheduler(SchedulerBase):
             return float(gd.get("tau_empirical", self.tau_default))
 
     @staticmethod
-    def _default_act(agent, state, mask):
-        out = agent.act(state, mask)
+    def _default_act(agent, state, mask, greedy=True):
+        try:
+            out = agent.act(state, mask, greedy=greedy)
+        except TypeError:
+            # agent tùy biến không nhận tham số `greedy` (vd GreedyPolicy đã tự argmax
+            # sẵn ở bên trong) -> gọi kiểu cũ, không phải lỗi.
+            out = agent.act(state, mask)
         return int(out[0]) if isinstance(out, tuple) else int(out)
 
     def reset(self) -> None:
@@ -149,26 +173,21 @@ class RLScheduler(SchedulerBase):
         mask = self._valid_mask(state.layers, depth)
         tau = self._resolve_tau(state)   # τ thật từ Stage 1C (hoặc fallback)
 
-        # Quét từng lớp, hỏi agent; chọn quyết định "mạnh nhất" khác keep.
-        best = None  # (priority, layer_id, action_idx)
-        for li, lyr in enumerate(layers):
-            s = encode_layer_state(state.layers, g, tau, li,
-                                   state.epoch, self.total_epochs, self._growth_locked)
-            a = self.act_fn(self.agent, s, mask)
-            if MACRO_ACTIONS[a] == A_KEEP:
-                continue
-            # ưu tiên: lớp yếu nhất (grad_variance thấp) được ưu tiên hành động
-            priority = -lyr.get("layer_grad_variance", 0.0)
-            if best is None or priority > best[0]:
-                best = (priority, lyr["layer_id"], a)
-
-        if best is None:
-            return MutationRequest(action=A_KEEP, reason="agent chose keep")
-
-        _, target_layer, a = best
+        # Một quyết định/tick, nhìn lớp YẾU NHẤT — khớp đúng cách Stage3RLEnv mã hóa
+        # state lúc train (weakest_layer_pos), tránh agent gặp state ngoài phân phối
+        # đã học lúc deploy (trước đây: quét TỪNG lớp hỏi agent, agent chưa từng thấy
+        # state của lớp không-yếu-nhất lúc train -> lệch phân phối).
+        pos = weakest_layer_pos(layers)
+        s = encode_layer_state(state.layers, g, tau, pos,
+                               state.epoch, self.total_epochs, self._growth_locked)
+        a = self.act_fn(self.agent, s, mask, self.greedy)
         action = MACRO_ACTIONS[a]
+
+        if action == A_KEEP:
+            return MutationRequest(action=A_KEEP, reason="agent chose keep")
         if action == A_STOP:
             self._growth_locked = True
-        tgt = target_layer if action in (A_PRUNE,) else None
+        target_layer = layers[pos]["layer_id"]
+        tgt = target_layer if action == A_PRUNE else None
         return MutationRequest(action=action, target_layer=tgt,
                                reason=f"RL agent (layer {target_layer})")

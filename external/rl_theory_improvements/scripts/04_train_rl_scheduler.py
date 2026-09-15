@@ -8,18 +8,18 @@ Kết quả lưu vào:  outputs/rl_results/<backend>/<agent>_<timestamp>/
 Cờ mới:
   --backend         simulate|pennylane : backend dùng để TRAIN agent (env).  [mặc định simulate]
   --deploy-backend  simulate|pennylane|same : backend cho phần DEPLOY/đánh giá. [mặc định same]
-  --dataset         iris|mnist|cancer : dataset cho PennyLaneBackend (bỏ qua nếu simulate). [mặc định cancer]
+  --dataset         iris|mnist : dataset cho PennyLaneBackend (bỏ qua nếu simulate). [mặc định iris]
   --max-samples     giới hạn số mẫu (mnist rất chậm với PennyLane).
 
 Ví dụ:
   # train nhanh trên simulate, đánh giá thật trên pennylane (KHUYẾN NGHỊ):
   python scripts/04_train_rl_scheduler.py --rl-path ...\\RL\\PPO --agent ppo ^
       --episodes 600 --cost-type global --topology circular ^
-      --backend simulate --deploy-backend pennylane --dataset cancer
+      --backend simulate --deploy-backend pennylane --dataset iris
 
   # train THẲNG trên pennylane thật (rất chậm — giảm episodes/total-epochs):
   python scripts/04_train_rl_scheduler.py --rl-path ...\\RL\\PPO --agent ppo ^
-      --episodes 30 --total-epochs 20 --backend pennylane --dataset cancer
+      --episodes 30 --total-epochs 20 --backend pennylane --dataset iris
 """
 from __future__ import annotations
 import argparse
@@ -28,6 +28,9 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
@@ -57,7 +60,9 @@ def make_env(args, seed, backend, data, calibration=None):
                        seed=seed, backend=backend, data=data,
                        entangler_type=args.entangler, calibration=calibration,
                        surrogate=getattr(args, "surrogate", None),
-                       use_telemetry=getattr(args, "use_telemetry", False))
+                       use_telemetry=not getattr(args, "no_telemetry", False),
+                       mask_epochs_T=args.mask_epochs_t,
+                       max_relative_loss_increase=args.max_rel_loss)
 
 
 def build_backend(kind, args, data, seed):
@@ -69,16 +74,14 @@ def build_backend(kind, args, data, seed):
             data["X_train"], data["y_train"], data["X_val"], data["y_val"],
             n_qubits=args.n_qubits, initial_depth=args.initial_depth,
             max_depth=args.max_depth, topology=args.topology,
-            entangler_type=args.entangler, cost_type=args.cost_type, seed=seed,
-            device_name=getattr(args, 'device_name', 'lightning.qubit'), diff_method="adjoint",
-            batch_sampler=data.get("batch_sampler", None))
+            entangler_type=args.entangler, cost_type=args.cost_type, seed=seed)
     return SimulateBackend(n_qubits=args.n_qubits, initial_depth=args.initial_depth,
                            max_depth=args.max_depth, cost_type=args.cost_type,
                            topology=args.topology, seed=seed)
 
 
 def _log_every(args):
-    """Cadence in log: nhá» episode -> in dày hơn (để run PennyLane ngắn vẫn thấy tiến độ)."""
+    """Cadence in log: nhỏ episode -> in dày hơn (để run PennyLane ngắn vẫn thấy tiến độ)."""
     return max(1, args.episodes // 20)
 
 
@@ -160,11 +163,11 @@ def save_learning_curve(rets, out_dir):
         plt.plot(df["episode"], df["return"], alpha=0.3, label="return")
         plt.plot(df["episode"], df["return_ma100"], label="moving avg (100)")
         plt.xlabel("Episode"); plt.ylabel("Return"); plt.legend()
-        plt.title("RL Scheduler - Learning Curve"); plt.grid(alpha=0.3)
+        plt.title("RL Scheduler — Learning Curve"); plt.grid(alpha=0.3)
         plt.tight_layout(); plt.savefig(out_dir / "learning_curve.png", dpi=120)
         plt.close()
     except Exception as e:
-        print(f"  (bá» qua vẽ biểu đồ: {e})")
+        print(f"  (bỏ qua vẽ biểu đồ: {e})")
 
 
 def save_agent(agent, out_dir):
@@ -175,7 +178,7 @@ def save_agent(agent, out_dir):
             torch.save(net.state_dict(), out_dir / "agent.pt")
             return True
     except Exception as e:
-        print(f"  (bá» qua lưu model: {e})")
+        print(f"  (bỏ qua lưu model: {e})")
     return False
 
 
@@ -202,14 +205,14 @@ def run_once(args, seed, data, deploy_backend, needs_data, out_dir):
     print(f"[seed {seed}] deploy {dep_ep} epoch trên {deploy_backend} (warmup={warmup})")
     sched = RLScheduler(agent, tau=0.1, total_epochs=dep_ep,
                         warmup_epochs=warmup, calibration=args.calibration)
+    te_on = not getattr(args, "no_telemetry", False)
     tr = AdaptiveTrainer(b, sched, n_qubits=args.n_qubits, cost_type=args.cost_type,
-                         topology=args.topology, epochs=dep_ep)
+                         topology=args.topology, epochs=dep_ep,
+                         mask_epochs_T=args.mask_epochs_t,
+                         max_relative_loss_increase=args.max_rel_loss,
+                         log_telemetry=te_on, telemetry_guard=te_on)
     df = tr.run()
     df.to_csv(out_dir / f"deploy_log_{deploy_backend}.csv", index=False)
-
-    if len(df) == 0:
-        print(f"[seed {seed}] Deploy bị bỏ qua (deploy_epochs=0).")
-        return {"agent": args.agent, "seed": seed}
 
     summary = {
         "agent": args.agent,
@@ -283,20 +286,19 @@ def main():
     ap.add_argument("--rl-path", required=True)
     ap.add_argument("--agent", choices=["ppo", "dqn"], default="ppo")
     ap.add_argument("--episodes", type=int, default=600)
-    ap.add_argument("--n-qubits", type=int, default=6)
+    ap.add_argument("--n-qubits", type=int, default=4)
     ap.add_argument("--initial-depth", type=int, default=2)
     ap.add_argument("--max-depth", type=int, default=16)
     ap.add_argument("--total-epochs", type=int, default=60)
     ap.add_argument("--cost-type", default="local")
     ap.add_argument("--topology", default="linear")
     ap.add_argument("--results-dir", default=None)
-    # --- chá»n backend ---
+    # --- chọn backend ---
     ap.add_argument("--backend", choices=["simulate", "pennylane"], default="simulate",
                     help="backend train agent (env)")
     ap.add_argument("--deploy-backend", choices=["simulate", "pennylane", "same"],
                     default="same", help="backend cho phần deploy/đánh giá")
-    ap.add_argument("--device-name", default="lightning.qubit")
-    ap.add_argument("--dataset", default="cancer",
+    ap.add_argument("--dataset", default="iris",
                     help="tên dataset trong dataset.py (iris, mnist, cancer, predictive_maintenance)")
     ap.add_argument("--max-samples", type=int, default=None)
     ap.add_argument("--entangler", choices=["cnot", "cz"], default="cnot",
@@ -314,9 +316,20 @@ def main():
                     help="danh sách seed cách nhau dấu phẩy để chạy multi-seed, vd 0,1,2,3,4")
     ap.add_argument("--surrogate", default=None,
                     help="surrogate_fit.json hiệu chỉnh SimulateBackend từ PennyLane thật")
-    ap.add_argument("--use-telemetry", action="store_true",
-                    help="bật Telemetry Engine (mask + reward gate + nhãn chẩn đoán). "
-                         "Mặc định TẮT -> tái lập baseline cũ. Bật để chạy nhánh ablation.")
+    ap.add_argument("--no-telemetry", action="store_true",
+                    help="TẮT Telemetry Engine (mask + reward gate + nhãn chẩn đoán) cho cả "
+                         "train (Stage3RLEnv) lẫn deploy (AdaptiveTrainer log+guard). Mặc định "
+                         "TE BẬT (khớp mô hình hệ thống trong báo cáo). Dùng cờ này để tái lập "
+                         "baseline không-TE (ablation).")
+    ap.add_argument("--max-rel-loss", type=float, default=0.02,
+                    help="nguong chap nhan mutation (add/prune/reduce): peak val-loss "
+                         "trong cua so mask_epochs_T tang qua ti le nay -> rollback. "
+                         "Mac dinh 0.02 (2%%) co the qua chat cho circuit PennyLane that "
+                         "(nhieu gradient/loss tu nhien) -> thu 0.05 neu thay depth khong "
+                         "bao gio tang duoc du agent co de xuat add_layer.")
+    ap.add_argument("--mask-epochs-t", type=int, default=5,
+                    help="so epoch cua cua so soft-mask (ramp alpha) truoc khi kiem "
+                         "accept/rollback cho add/prune/reduce. Mac dinh 5.")
     args = ap.parse_args()
 
     # calibration path -> None nếu không tồn tại (fallback an toàn)

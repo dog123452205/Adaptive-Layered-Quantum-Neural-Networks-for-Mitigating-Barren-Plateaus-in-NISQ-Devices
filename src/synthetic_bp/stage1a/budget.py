@@ -139,7 +139,7 @@ def plan_effective_depth(
 
 def count_hea_parameters(n_qubits: int, depth: int) -> int:
     """
-    Count trainable rotation parameters for RX/RY/RZ HEA.
+    Count trainable rotation parameters for ZYZ (RZ/RY/RZ) HEA.
 
     Args:
         n_qubits:
