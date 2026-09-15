@@ -11,8 +11,6 @@ cho cả paper 1 (rule) và V2 (RL). Đồng thời là RUNTIME cho RL backend.
 from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
-import math
-import numpy as np
 import pandas as pd
 
 from src.synthetic_bp.stage3.circuit_backend import CircuitBackend
@@ -29,7 +27,7 @@ class AdaptiveTrainer:
                  n_qubits: int, cost_type: str, topology: str,
                  epochs: int = 100, mask_epochs_T: int = 5,
                  max_relative_loss_increase: float = 0.02,
-                 log_telemetry: bool = False, telemetry_guard: bool = False,
+                 log_telemetry: bool = True, telemetry_guard: bool = True,
                  telemetry_cfg=None, offline_risk: float = 0.5):
         self.backend = backend
         self.scheduler = scheduler
@@ -38,7 +36,8 @@ class AdaptiveTrainer:
         self.topology = topology
         self.epochs = epochs
         # TE deploy-time: log_telemetry chỉ ghi nhãn; telemetry_guard mới veto hành động.
-        # Mặc định cả hai tắt -> log/hành vi cũ giữ nguyên cho MỌI scheduler.
+        # Mặc định CẢ HAI BẬT (khớp mô hình hệ thống trong báo cáo: TE luôn hoạt động).
+        # Truyền log_telemetry=False, telemetry_guard=False tường minh để tái lập baseline cũ.
         self.log_telemetry = log_telemetry or telemetry_guard
         self.telemetry_guard = telemetry_guard
         self.offline_risk = offline_risk
@@ -140,10 +139,6 @@ class AdaptiveTrainer:
                     row[k] = v if not isinstance(v, list) else str(v)
                 row["te_p_solved"] = te_out.features["p_solved"]
             self.log.append(row)
-            if (epoch + 1) % 5 == 0 or epoch == 0 or epoch == self.epochs - 1:
-                auc_val = ev.get('roc_auc', 0.0)
-                auc_str = f"{auc_val:.3f}" if not np.isnan(auc_val) else "N/A"
-                print(f"    [ep {epoch+1:2d}/{self.epochs}] val_loss: {vloss:.4f} | acc: {ev['accuracy']:.3f} | f1: {ev['f1']:.3f} | auc: {auc_str} | depth: {g['depth']} | act: {decided}")
 
         return pd.DataFrame(self.log)
 

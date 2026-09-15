@@ -8,7 +8,11 @@ Nhận MutationRequest từ Scheduler (Stage 2) và thực thi VÒNG ĐỜI nhi�
       PROPOSED -> MASKING (cosine anneal alpha 1->0 trong T epoch) -> kiểm acceptance
                -> COMMITTED (loại lớp / chốt giảm entangler) | ROLLED_BACK (nạp lại registry)
 
-  add_layer  : thêm lớp ngay.
+  add_layer  : CÙNG vòng đời an toàn như trên, nhưng alpha ramp NGƯỢC (0->1): lớp mới
+               thêm vào ở mask=0 (chưa đóng góp gì), tăng dần lên 1 trong T epoch. Hết
+               cửa sổ mới kiểm acceptance -> COMMITTED (giữ lớp) | ROLLED_BACK (gỡ lớp,
+               nạp lại registry). Trước bản sửa này add_layer commit ngay lập tức, không
+               có lưới an toàn -> một lần add làm hại (BP nặng hơn) không thể hoàn tác.
   stop_growth: khóa tăng trưởng.
   keep       : không làm gì.
 
@@ -49,7 +53,7 @@ def cosine_alpha(t: int, T: int) -> float:
 
 @dataclass
 class _ActiveMutation:
-    kind: str            # A_PRUNE | A_REDUCE
+    kind: str            # A_PRUNE | A_REDUCE | A_ADD
     target_layer: Optional[int]
     t: int               # epoch đã trôi qua trong quá trình mask
     T: int               # tổng epoch mask
@@ -88,15 +92,24 @@ class MutationEngine:
             self.last_status = M_NONE
             return M_NONE
         if action == A_ADD:
-            if not self.growth_locked:
-                self.backend.add_layer()
-                self.registry.commit_checkpoint(current_val_loss)
-                self.registry.mark_commit()
-                self.mutation_count += 1
-                self.last_status = M_COMMIT
-                return M_COMMIT
-            self.last_status = M_NONE
-            return M_NONE
+            if self.growth_locked:
+                self.last_status = M_NONE
+                return M_NONE
+            # chốt checkpoint TRƯỚC khi add (mốc an toàn để rollback nếu lớp mới làm hại)
+            self.registry.commit_checkpoint(current_val_loss)
+            depth_before = self.backend.depth
+            self.backend.add_layer()
+            if self.backend.depth == depth_before:
+                # đã ở max_depth -> add_layer no-op, không có gì để theo dõi
+                self.last_status = M_NONE
+                return M_NONE
+            new_layer_id = self.backend.depth - 1
+            self.backend.set_layer_mask(new_layer_id, 0.0)  # ramp 0->1, chưa đóng góp ngay
+            self.active = _ActiveMutation(kind=A_ADD, target_layer=new_layer_id,
+                                          t=0, T=self.T, start_val_loss=current_val_loss,
+                                          peak_val_loss=current_val_loss)
+            self.last_status = M_MASKING
+            return M_MASKING
         if action in (A_PRUNE, A_REDUCE):
             # chốt checkpoint TRƯỚC khi mask (để rollback được)
             self.registry.commit_checkpoint(current_val_loss)
@@ -122,8 +135,10 @@ class MutationEngine:
 
         if m.kind == A_PRUNE:
             self.backend.set_layer_mask(m.target_layer, alpha)
-        else:  # A_REDUCE
+        elif m.kind == A_REDUCE:
             self.backend.set_entangler_strength(alpha)
+        else:  # A_ADD: ramp NGƯỢC — lớp mới đi từ mask=0 lên 1
+            self.backend.set_layer_mask(m.target_layer, 1.0 - alpha)
 
         if m.t < m.T:
             return M_MASKING
@@ -138,12 +153,13 @@ class MutationEngine:
             if m.kind == A_PRUNE:
                 self.backend.remove_layer(m.target_layer)
             # với REDUCE: đã ở alpha thấp, giữ nguyên (đã giảm)
+            # với ADD: mask đã ramp tới 1.0, lớp mới giữ nguyên full-strength
             self.registry.commit_checkpoint(current_val_loss)
             self.registry.mark_commit()
             self.mutation_count += 1
             status = M_COMMIT
         else:
-            self.registry.rollback()        # nạp lại param + cấu trúc cũ
+            self.registry.rollback()        # nạp lại param + cấu trúc cũ (gỡ lớp mới nếu ADD)
             status = M_ROLLBACK
 
         self.active = None

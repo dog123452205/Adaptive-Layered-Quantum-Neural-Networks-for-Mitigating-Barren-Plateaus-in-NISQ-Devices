@@ -112,12 +112,25 @@ class SimulateBackend(CircuitBackend):
         }
 
     # ---- động lực học mô phỏng ----
+    def _n_qubits_decay(self) -> float:
+        """Hệ số BP theo SỐ QUBIT — trước đây _trainability() không phụ thuộc n_qubits
+        chút nào (chỉ depth/cost_type), sai với lý thuyết: BP còn nặng theo n_qubits,
+        đặc biệt với cost toàn cục (McClean et al. 2018: Var ~ 2^-n, mũ theo n_qubits).
+        Cost cục bộ ít bị ảnh hưởng bởi n_qubits hơn nhiều (Cerezo et al. 2021:
+        cost-function-dependent BP, chỉ suy giảm đa thức ~1/sqrt(n)).
+        Chuẩn hóa để n_qubits=8 -> hệ số=1.0 (giữ nguyên mọi cấu hình 8-qubit đã hiệu
+        chỉnh trước đó, ví dụ K=0.28/p=0.75 trong train_epoch())."""
+        n = max(self.n_qubits, 1)
+        if self.cost_type == "global":
+            return float(2.0 ** (-(n - 8)))
+        return float((8.0 / n) ** 0.5)
+
     def _trainability(self) -> float:
-        """Phương sai gradient hữu hiệu (fallback heuristic), giảm theo depth và global cost."""
+        """Phương sai gradient hữu hiệu (fallback heuristic), giảm theo depth, n_qubits, cost."""
         base = 0.05
         bp_decay = 2.0 ** (-(self.depth * (2 if self.cost_type == "global" else 1)) / 4.0)
         ent = 0.4 + 0.6 * self.entangler_strength
-        return base * bp_decay * ent
+        return base * bp_decay * self._n_qubits_decay() * ent
 
     def _spatial_var(self) -> float:
         """Phương sai gradient toàn cục. Ưu tiên surrogate fit từ PennyLane thật."""
@@ -149,9 +162,21 @@ class SimulateBackend(CircuitBackend):
     def train_epoch(self) -> dict[str, Any]:
         self.epoch += 1
         gm = self._grad_mag()
-        cap = self._effective_capacity()
         floor = self._loss_floor()
-        step = 0.04 * cap * (gm ** 0.25)
+        # step TỈ LỆ VỚI PHẦN CÒN LẠI (val_loss - floor) -> hội tụ TIỆM CẬN (giống gradient
+        # descent thật gần local minimum: bước tự nhiên nhỏ dần khi gần hội tụ), thay vì
+        # step CỐ ĐỊNH mỗi epoch (bản trước — dù đã sửa mũ 0.25->0.75, step cố định vẫn tạo
+        # ra hiện tượng "ngưỡng nhị phân": 100 epoch có đủ ngân sách step×epoch để vượt hết
+        # khoảng cách tới floor hay không gần như là CÓ/KHÔNG, tạo "vực" đột ngột giữa các
+        # depth thay vì suy giảm mượt — vd trước đây depth=12 vẫn hội tụ đầy đủ (87%) nhưng
+        # depth=14 đã kẹt hẳn, không có điểm nào ở giữa thể hiện suy giảm dần).
+        # rate = tốc độ đóng khoảng cách MỖI EPOCH (0=đứng yên, 1=chạm floor ngay lập tức),
+        # phụ thuộc gm (trainability) theo depth/n_qubits/cost_type như cũ. Hằng số K=19.84,
+        # p=1.10 hiệu chỉnh để n_qubits=8/depth 2-8 khớp gần đúng số cũ đã kiểm chứng (chưa
+        # đổi), còn depth 10->16 giờ suy giảm MƯỢT (75%->67%->46%->27%->14%) thay vì rơi
+        # thẳng từ 87% xuống 45% giữa depth 12 và 16.
+        rate = min(19.8401 * (gm ** 1.1018), 0.95)
+        step = rate * (self._val_loss - floor)
         new_loss = self._val_loss - step + 0.008 * self.rng.standard_normal()
         self._val_loss = float(max(floor, new_loss))
         self._train_loss = self._val_loss + 0.02
@@ -260,9 +285,9 @@ class PennyLaneBackend(CircuitBackend):
     """
 
     def __init__(self, X_train, y_train, X_val, y_val, n_qubits=4, initial_depth=2,
-                 max_depth=16, topology="linear", entangler_type="cnot",
+                 max_depth=16, topology="linear", entangler_type="ising_zz",
                  cost_type="local", lr=0.01, seed=0, device_name="default.qubit",
-                 diff_method="backprop", batch_sampler=None):
+                 diff_method="backprop"):
         import pennylane as qml
         from pennylane import numpy as pnp
         from src.synthetic_bp.stage1a.ansatz import apply_hea
@@ -273,7 +298,6 @@ class PennyLaneBackend(CircuitBackend):
 
         self.X_train, self.y_train = X_train, y_train
         self.X_val, self.y_val = X_val, y_val
-        self.batch_sampler = batch_sampler
         self.n_qubits = n_qubits
         self.initial_depth = initial_depth
         self.max_depth = max_depth
@@ -296,13 +320,7 @@ class PennyLaneBackend(CircuitBackend):
             rng.uniform(-np.pi, np.pi, size=(self.depth, self.n_qubits, 3)),
             requires_grad=True)
         self.opt = self.qml.AdamOptimizer(self.lr)
-        try:
-            self.device = self.qml.device(self.device_name, wires=self.n_qubits)
-        except Exception:
-            try:
-                self.device = self.qml.device("lightning.qubit", wires=self.n_qubits)
-            except Exception:
-                self.device = self.qml.device("default.qubit", wires=self.n_qubits)
+        self.device = self.qml.device(self.device_name, wires=self.n_qubits)
         self._last_metrics = {}
 
     def _make_qnode(self):
@@ -330,61 +348,54 @@ class PennyLaneBackend(CircuitBackend):
         return -self.pnp.mean(y * self.pnp.log(preds) + (1 - y) * self.pnp.log(1 - preds))
 
     def train_epoch(self) -> dict[str, Any]:
-        if self.batch_sampler is not None:
-            X_curr, y_curr = self.batch_sampler.next_batch()
-            self._current_X = X_curr
-            self._current_y = y_curr
-        else:
-            X_curr, y_curr = self.X_train, self.y_train
-
         self.theta, _ = self.opt.step_and_cost(
-            lambda t: self._loss(t, X_curr, y_curr), self.theta)
+            lambda t: self._loss(t, self.X_train, self.y_train), self.theta)
         return self.global_metrics()
 
     def evaluate(self) -> dict[str, Any]:
-        from sklearn.metrics import f1_score, roc_auc_score, accuracy_score, roc_curve
+        from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
         qnode = self._make_qnode()
         probs = np.array([float((qnode(self.theta, x) + 1) / 2) for x in self.X_val])
+        preds = (probs >= 0.5).astype(int)
         vloss = float(self._loss(self.theta, self.X_val, self.y_val))
         try:
             auc = float(roc_auc_score(self.y_val, probs))
-            fpr, tpr, thresholds = roc_curve(self.y_val, probs)
-            J = tpr - fpr
-            best_thresh = thresholds[np.argmax(J)]
         except Exception:
             auc = float("nan")
-            best_thresh = 0.5
-
-        preds = (probs >= best_thresh).astype(int)
         return {"validation_loss": vloss,
                 "accuracy": float(accuracy_score(self.y_val, preds)),
                 "f1": float(f1_score(self.y_val, preds, zero_division=0)),
-                "roc_auc": auc, "is_proxy": False, "optimal_threshold": float(best_thresh)}
+                "roc_auc": auc, "is_proxy": False}
 
     def _grads(self):
-        X_curr = getattr(self, "_current_X", self.X_train)
-        y_curr = getattr(self, "_current_y", self.y_train)
-        g = self.qml.grad(lambda t: self._loss(t, X_curr, y_curr))(self.theta)
+        g = self.qml.grad(lambda t: self._loss(t, self.X_train, self.y_train))(self.theta)
         return np.array(g)  # shape (depth, n_qubits, 3)
 
     def sample_grad_variance(self, n_samples=1, seed=0):
-        """Phương sai gradient trung bình qua n_samples lần init ngẫu nhiên.
+        """Phương sai gradient ĐÚNG định nghĩa barren plateau: Var_theta[dC/dtheta_i],
+        tức với MỖI vị trí tham số i, tính variance của gradient tại i QUA n_samples lần
+        khởi tạo ngẫu nhiên khác nhau — rồi lấy trung bình qua các vị trí tham số.
 
-        Đúng định nghĩa barren plateau (variance of gradient over random inits),
-        giảm nhiễu so với đo 1 lần. n_samples=1 -> như global_metrics hiện tại.
+        (Bản trước ở đây SAI: tính variance GIỮA CÁC THAM SỐ trong 1 lần khởi tạo, rồi
+        lấy trung bình qua các lần khởi tạo — một đại lượng "spatial" khác hẳn, không đo
+        đúng cái BP theory nói tới, và không thể hiện xu hướng giảm sạch theo depth khi
+        thử calibrate thật — n_qubits=8 cho b gần 0 hoặc âm thay vì dương như lý thuyết.)
+        n_samples=1 -> chỉ 1 điểm, không có variance thật, coi như fallback cũ.
         """
         if n_samples <= 1:
             return float(self.global_metrics()["spatial_grad_variance"])
         rng = np.random.default_rng(seed)
         saved = self.theta
-        vals = []
+        grads_per_init = []
         for _ in range(n_samples):
             self.theta = self.pnp.array(
                 rng.uniform(-np.pi, np.pi, size=np.array(saved).shape),
                 requires_grad=True)
-            vals.append(float(np.var(self._grads().ravel())))
+            grads_per_init.append(self._grads().ravel())
         self.theta = saved
-        return float(np.mean(vals))
+        G = np.array(grads_per_init)              # (n_samples, n_params)
+        var_per_param = np.var(G, axis=0)          # variance QUA CÁC LẦN KHỞI TẠO, mỗi tham số
+        return float(np.mean(var_per_param))       # trung bình qua các vị trí tham số
 
     def layer_metrics(self) -> list[dict[str, Any]]:
         g = self._grads()

@@ -14,7 +14,7 @@ from __future__ import annotations
 import pennylane as qml
 from src.synthetic_bp.constants import EntanglementTopology, EntanglerType
 
-ROTATION_AXES = ('RX', 'RY', 'RZ')
+ROTATION_AXES = ('RZ', 'RY', 'RZ')
 
 def apply_hea(
     params, 
@@ -26,7 +26,7 @@ def apply_hea(
     """
     Apply a hardware-efficient ansatz.
 
-    Each layer applies RX, RY, RZ rotations on every qubit,
+    Each layer applies a ZYZ (RZ, RY, RZ) rotation block on every qubit,
     followed by an entanglement block.
 
     Args:
@@ -69,7 +69,7 @@ def apply_hea(
 
 def apply_rotation_block(layer_params, n_qubit) -> None:
     '''
-    Apply RX/RY/RZ rotations for one HEA layer.
+    Apply a ZYZ (RZ, RY, RZ) rotation block for one HEA layer.
 
     Args:
         layer_params:
@@ -78,7 +78,6 @@ def apply_rotation_block(layer_params, n_qubit) -> None:
             Number of qubits.
     '''
     for wire in range(n_qubit):
-        qml.RX(layer_params[wire, 0], wires=wire)
         qml.RZ(layer_params[wire, 0], wires=wire)
         qml.RY(layer_params[wire, 1], wires=wire)
         qml.RZ(layer_params[wire, 2], wires=wire)
