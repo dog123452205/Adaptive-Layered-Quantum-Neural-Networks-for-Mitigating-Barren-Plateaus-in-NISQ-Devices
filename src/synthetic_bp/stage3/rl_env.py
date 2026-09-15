@@ -8,6 +8,15 @@ Chọn backend qua tham số `backend`:
 
 Cả hai cùng interface CircuitBackend nên MutationEngine/ParameterRegistry/encoder
 dùng chung, agent train ở đây deploy thẳng làm scheduler.
+
+Ghi chú xuất xứ (2026-09-16): nội dung file này là bản của Lê Hoàng Nam
+(github.com/LeNam123456/AL_QNN), KHÔNG phải bản do Lam Vuong tự viết, dù
+"RL environment: MDP... mutation engine, reward" ghi nhận là trách nhiệm Lam
+Vuong trong WBS (project_management.tex). Dùng bản này (round-robin layer_ptr,
+Telemetry Engine tắt mặc định) vì nó đúng là env đã train ra checkpoint đứng
+sau tab:ai4i/tab:heart. Bản gốc do Lam Vuong viết (per-step reward,
+weakest-layer targeting, mask khi mutation đang bận) được lưu ở
+external/rl_theory_improvements/src/synthetic_bp/stage3/rl_env.py.
 """
 from __future__ import annotations
 import numpy as np

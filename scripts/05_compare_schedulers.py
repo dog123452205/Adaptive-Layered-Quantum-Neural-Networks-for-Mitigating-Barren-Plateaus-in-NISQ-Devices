@@ -10,6 +10,13 @@ Chạy:
     python scripts/05_compare_schedulers.py --backend pennylane \
         --ppo-ckpt outputs/rl_results/bcw_6q_ppo/agent.pt \
         --dqn-ckpt outputs/rl_results/bcw_6q_dqn/agent.pt
+
+Ghi chú xuất xứ (2026-09-16): nội dung file này là bản của Lê Hoàng Nam
+(github.com/LeNam123456/AL_QNN), KHÔNG phải bản do Lam Vuong tự viết, dù
+"Deployment: run learned policy on PennyLane; compare against rule and greedy"
+ghi nhận thuộc trách nhiệm Dao Quang Minh trong WBS (project_management.tex).
+Dùng bản này vì nó đúng là script đã tạo ra tab:ai4i/tab:heart. Bản gốc do
+Lam Vuong viết được lưu ở external/rl_theory_improvements/scripts/05_compare_schedulers.py.
 """
 from __future__ import annotations
 import argparse

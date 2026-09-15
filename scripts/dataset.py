@@ -8,6 +8,12 @@ y in {0,1}. Hỗ trợ:
               qua fetch_openml (cần mạng); subsample cho nhẹ vì PennyLane rất chậm.
 
 Chỉ cần khi backend = pennylane. SimulateBackend không dùng file này.
+
+Ghi chú xuất xứ (2026-09-16): nội dung file này là bản của Lê Hoàng Nam
+(github.com/LeNam123456/AL_QNN), KHÔNG phải bản do Lam Vuong tự viết — dùng ở
+đây vì đây đúng là code đã tạo ra kết quả cuối tab:ai4i/tab:heart. Bản gốc do
+Lam Vuong viết (SMOTE thay vì cyclic partitioned undersampling) được lưu ở
+external/rl_theory_improvements/scripts/dataset.py.
 """
 from __future__ import annotations
 from pathlib import Path
