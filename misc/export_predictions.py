@@ -39,7 +39,7 @@ from src.synthetic_bp.stage2.rule_based_scheduler import RuleBasedScheduler
 
 # (load_name, n_qubits, friendly)  — chỉ giữ dataset đã có data thật
 DATASETS = [
-    ("predictive_maintenance", 6, "AI4I Predictive Maintenance"),
+    ("predictive_maintenance", 8, "AI4I Predictive Maintenance"),
     ("cancer",                 8, "Breast Cancer Wisconsin"),   # BCW = sklearn load_breast_cancer
     ("german_credit",          8, "German Credit"),
     ("pima",                   8, "Pima Diabetes"),             # cần pima.csv trong data/
@@ -57,7 +57,7 @@ MAXS_BY_DATASET = {
     "heart": 280,
     "cancer": 569,       # full sklearn breast_cancer (569 rows, no class balancing applied)
     "parkinsons": 280,
-    "predictive_maintenance": 3000,   # only real dataset large enough to scale up (10k rows available)
+    "predictive_maintenance": None,   # None -> dataset.py's Cyclic Partitioned Undersampling path: keeps ALL 10,000 real rows, no cap. Requires batch_sampler passed to PennyLaneBackend below.
 }
 DEFAULT_MAXS = 280
 
@@ -82,7 +82,8 @@ for name, nq, friendly in DATASETS:
                              data["X_val"], data["y_val"],  # val: dùng lúc train để scheduler quyết định
                              n_qubits=nq, initial_depth=2, max_depth=8,
                              topology=TOPO, entangler_type="cnot",
-                             cost_type=COST, seed=SEED)
+                             cost_type=COST, seed=SEED,
+                             batch_sampler=data.get("batch_sampler"))
         sched = RuleBasedScheduler(calibration=None)
         tr = AdaptiveTrainer(b, sched, n_qubits=nq, cost_type=COST,
                              topology=TOPO, epochs=EPOCHS)

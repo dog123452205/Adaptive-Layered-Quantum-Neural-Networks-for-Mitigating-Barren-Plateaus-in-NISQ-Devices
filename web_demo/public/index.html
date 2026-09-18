@@ -45,10 +45,7 @@
     <label class="field-label" for="datasetSelect">Task</label>
     <select id="datasetSelect"></select>
 
-    <div class="model-list" id="modelList">
-      <label class="model-row"><input type="checkbox" value="quantum" checked> <span>AL-QNN (Quantum)</span></label>
-      <label class="model-row"><input type="checkbox" value="classical" checked> <span>Logistic Regression (Classical)</span></label>
-    </div>
+    <div class="model-list" id="modelList"></div>
 
     <label class="field-label" for="sampleIndex">Sample #</label>
     <div class="sample-input-row">
@@ -77,9 +74,7 @@
     <h2>Statistics</h2>
     <div id="statsEmpty" class="empty-state">Pick a task to see its statistics.</div>
     <table class="stats-table hidden" id="statsTable">
-      <thead>
-        <tr><th>Metric</th><th>Quantum</th><th>Classical</th></tr>
-      </thead>
+      <thead id="statsHead"></thead>
       <tbody id="statsBody"></tbody>
     </table>
   </aside>
@@ -112,6 +107,29 @@
     </p>
     <canvas id="confidenceChart" height="180"></canvas>
   </div>
+</section>
+
+<section class="explainer">
+  <h2>Why is AL-QNN's confidence so low — and why design it that way?</h2>
+  <p>
+    A deep parameterized quantum circuit runs into a <b>barren plateau</b>: as circuit depth grows,
+    gradients shrink exponentially toward zero, and training effectively stalls — the model can no
+    longer learn. This is a well-known obstacle for near-term ("NISQ") quantum hardware, not a bug
+    in this implementation.
+  </p>
+  <p>
+    AL-QNN's answer is to make circuit depth <b>adaptive</b> rather than fixed: a scheduler
+    (Rule-based, Greedy, or a learned RL agent — PPO/DQN, selectable above) watches gradient signals
+    every few epochs and decides whether to <b>add</b> a layer (more capacity), <b>prune</b> a dead
+    one, or <b>stop growing</b> — always keeping the circuit in the shallow, trainable regime instead
+    of letting it grow into a plateau. That is the trade-off you see reflected in the numbers: the
+    circuit stays shallow on purpose, so its predicted probabilities cluster close to 0.5 (low
+    confidence) even when its final <b>accuracy</b> is competitive with the classical baseline —
+    confidence and correctness are not the same thing here. Comparing Rule/Greedy (fixed heuristics)
+    against PPO/DQN (learned policies) above is exactly a test of whether a trained scheduler can
+    make better add/prune/stop decisions than a hand-written rule — which is the central question
+    this project investigates.
+  </p>
 </section>
 
 <script src="app.js"></script>

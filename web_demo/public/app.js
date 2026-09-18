@@ -16,10 +16,23 @@ const verdictCards = document.getElementById('verdictCards');
 
 const statsEmpty = document.getElementById('statsEmpty');
 const statsTable = document.getElementById('statsTable');
+const statsHead = document.getElementById('statsHead');
 const statsBody = document.getElementById('statsBody');
 
 let datasets = [];
-const CYAN = '#34e0e0', BLUE = '#5b8cff', MUTED = '#8894b8';
+// stable color per model key, regardless of how many models a dataset has
+const MODEL_COLORS = {
+  rule: '#34e0e0',      // cyan
+  greedy: '#f5a623',    // amber
+  ppo: '#a56bff',       // purple
+  dqn: '#ff6fae',       // pink
+  classical: '#5b8cff', // blue
+  rf: '#7ee787',        // green
+};
+const MUTED = '#8894b8';
+const FALLBACK_COLORS = ['#34e0e0', '#f5a623', '#a56bff', '#ff6fae', '#5b8cff', '#7ee787'];
+function colorFor(key, i) { return MODEL_COLORS[key] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]; }
+
 let metricsChart, timingChart, confidenceChart, rocChart;
 
 Chart.defaults.color = MUTED;
@@ -36,7 +49,7 @@ async function loadDatasets() {
   const res = await fetch('/api/datasets');
   datasets = await res.json();
   datasetSelect.innerHTML = datasets.map(
-    (d) => `<option value="${d.key}">${d.friendly} (${d.nSamples} samples)</option>`
+    (d) => `<option value="${d.key}">${d.friendly} (${d.nTotal ? d.nTotal + ' samples, ' : ''}${d.nSamples} held out for test)</option>`
   ).join('');
   await onDatasetChange();
 }
@@ -53,10 +66,16 @@ function currentDataset() {
 async function onDatasetChange() {
   const d = currentDataset();
   if (!d) return;
-  sampleRange.textContent = `Valid range: 0 – ${d.nSamples - 1} (leave "Sample #" blank to pick randomly)`;
+  sampleRange.textContent = `Valid range: 0 – ${d.nSamples - 1} in the held-out test set (leave "Sample #" blank to pick randomly)`;
   sampleIndex.max = d.nSamples - 1;
   resultEmpty.classList.remove('hidden');
   resultBody.classList.add('hidden');
+
+  modelList.innerHTML = d.models.map((m) => `
+    <label class="model-row">
+      <input type="checkbox" value="${m.key}" checked> <span>${m.label}</span>
+    </label>`).join('');
+
   await loadStats(d.key);
   await loadConfidence(d.key);
 }
@@ -65,7 +84,8 @@ async function loadStats(key) {
   const res = await fetch(`/api/stats/${key}`);
   const data = await res.json();
   const s = data.stats;
-  if (!s || !s.quantum || !s.classical) {
+  const models = data.models || [];
+  if (!s || models.length === 0) {
     statsEmpty.classList.remove('hidden');
     statsEmpty.textContent = 'Not enough statistics available for this task yet (missing stats_*.json).';
     statsTable.classList.add('hidden');
@@ -75,33 +95,39 @@ async function loadStats(key) {
   statsEmpty.classList.add('hidden');
   statsTable.classList.remove('hidden');
 
-  const rows = [
-    ['Accuracy', s.quantum.accuracy, s.classical.accuracy, 'pct'],
-    ['Precision', s.quantum.precision, s.classical.precision, 'pct'],
-    ['Recall', s.quantum.recall, s.classical.recall, 'pct'],
-    ['F1', s.quantum.f1, s.classical.f1, 'pct'],
-    ['AUC', s.quantum.auc, s.classical.auc, 'pct'],
-    ['Avg. inference time (ms/sample)', s.quantum.avg_infer_ms, s.classical.avg_infer_ms, 'ms_lower_better'],
-    ['Total time on test set (ms)', s.quantum.total_infer_ms, s.classical.total_infer_ms, 'ms_lower_better'],
-    ['Qubits / features', s.quantum.n_qubits, s.classical.n_features, 'raw'],
+  statsHead.innerHTML = '<tr><th>Metric</th>' + models.map((m) => `<th>${m.label}</th>`).join('') + '</tr>';
+
+  const metricRows = [
+    ['Accuracy', 'accuracy', 'pct'],
+    ['Precision', 'precision', 'pct'],
+    ['Recall', 'recall', 'pct'],
+    ['F1', 'f1', 'pct'],
+    ['AUC', 'auc', 'pct'],
+    ['Avg. inference time (ms/sample)', 'avg_infer_ms', 'ms_lower_better'],
+    ['Total time on test set (ms)', 'total_infer_ms', 'ms_lower_better'],
   ];
 
-  statsBody.innerHTML = rows.map(([label, qv, cv, kind]) => {
-    let qCell = qv, cCell = cv, qClass = '', cClass = '';
+  statsBody.innerHTML = metricRows.map(([label, field, kind]) => {
+    const vals = models.map((m) => (s[m.statsKey] ? s[m.statsKey][field] : null));
+    let cells;
     if (kind === 'pct') {
-      qCell = qv == null ? '—' : (qv * 100).toFixed(1) + '%';
-      cCell = cv == null ? '—' : (cv * 100).toFixed(1) + '%';
-      if (qv != null && cv != null) { if (qv > cv) qClass = 'better'; else if (cv > qv) cClass = 'better'; }
-    } else if (kind === 'ms_lower_better') {
-      qCell = qv == null ? '—' : qv.toFixed(3);
-      cCell = cv == null ? '—' : cv.toFixed(3);
-      if (qv != null && cv != null) { if (qv < cv) qClass = 'better'; else if (cv < qv) cClass = 'better'; }
+      const best = Math.max(...vals.filter((v) => v != null));
+      cells = vals.map((v) => v == null ? '<td>—</td>'
+        : `<td class="${v === best ? 'better' : ''}">${(v * 100).toFixed(1)}%</td>`);
+    } else {
+      const present = vals.filter((v) => v != null);
+      const best = present.length ? Math.min(...present) : null;
+      cells = vals.map((v) => v == null ? '<td>—</td>'
+        : `<td class="${v === best ? 'better' : ''}">${v.toFixed(3)}</td>`);
     }
-    return `<tr><td>${label}</td><td class="${qClass}">${qCell}</td><td class="${cClass}">${cCell}</td></tr>`;
+    return `<tr><td>${label}</td>${cells.join('')}</tr>`;
   }).join('');
 
-  renderMetricsChart(s);
-  renderTimingChart(s);
+  const qubitVals = models.map((m) => (s[m.statsKey] && (s[m.statsKey].n_qubits ?? s[m.statsKey].n_features)) ?? '—');
+  statsBody.innerHTML += `<tr><td>Qubits / features</td>${qubitVals.map((v) => `<td>${v}</td>`).join('')}</tr>`;
+
+  renderMetricsChart(s, models);
+  renderTimingChart(s, models);
 }
 
 function destroyChart(name) {
@@ -113,19 +139,19 @@ function destroyChart(name) {
   if (name === 'rocChart') rocChart = null;
 }
 
-function renderMetricsChart(s) {
+function renderMetricsChart(s, models) {
   destroyChart('metricsChart');
   const labels = ['Accuracy', 'Precision', 'Recall', 'F1', 'AUC'];
-  const qVals = [s.quantum.accuracy, s.quantum.precision, s.quantum.recall, s.quantum.f1, s.quantum.auc];
-  const cVals = [s.classical.accuracy, s.classical.precision, s.classical.recall, s.classical.f1, s.classical.auc];
+  const fields = ['accuracy', 'precision', 'recall', 'f1', 'auc'];
   metricsChart = new Chart(document.getElementById('metricsChart'), {
     type: 'bar',
     data: {
       labels,
-      datasets: [
-        { label: 'AL-QNN (Quantum)', data: qVals, backgroundColor: CYAN },
-        { label: 'Logistic Regression (Classical)', data: cVals, backgroundColor: BLUE },
-      ],
+      datasets: models.map((m, i) => ({
+        label: m.label,
+        data: fields.map((f) => (s[m.statsKey] ? s[m.statsKey][f] : null)),
+        backgroundColor: colorFor(m.key, i),
+      })),
     },
     options: {
       responsive: true,
@@ -135,16 +161,17 @@ function renderMetricsChart(s) {
   });
 }
 
-function renderTimingChart(s) {
+function renderTimingChart(s, models) {
   destroyChart('timingChart');
   timingChart = new Chart(document.getElementById('timingChart'), {
     type: 'bar',
     data: {
       labels: ['Avg. inference time (ms/sample)'],
-      datasets: [
-        { label: 'AL-QNN (Quantum)', data: [s.quantum.avg_infer_ms], backgroundColor: CYAN },
-        { label: 'Logistic Regression (Classical)', data: [s.classical.avg_infer_ms], backgroundColor: BLUE },
-      ],
+      datasets: models.map((m, i) => ({
+        label: m.label,
+        data: [s[m.statsKey] ? s[m.statsKey].avg_infer_ms : null],
+        backgroundColor: colorFor(m.key, i),
+      })),
     },
     options: {
       indexAxis: 'y',
@@ -160,8 +187,9 @@ async function loadConfidence(key) {
   const data = await res.json();
   destroyChart('confidenceChart');
   destroyChart('rocChart');
-  if (!data.quantum && !data.classical) return;
-  renderRocChart(data);
+  const models = data.models || [];
+  if (models.length === 0) return;
+  renderRocChart(data, models);
 
   const binEdges = [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1.0001];
   const binLabels = ['0.0-0.1', '0.1-0.2', '0.2-0.3', '0.3-0.4', '0.4-0.5',
@@ -177,11 +205,9 @@ async function loadConfidence(key) {
     return counts.map((c) => (100 * c) / rows.length);
   }
 
-  const qHist = histogram(data.quantum);
-  const cHist = histogram(data.classical);
-  const chartDatasets = [];
-  if (qHist) chartDatasets.push({ label: 'AL-QNN (Quantum)', data: qHist, backgroundColor: CYAN });
-  if (cHist) chartDatasets.push({ label: 'Logistic Regression (Classical)', data: cHist, backgroundColor: BLUE });
+  const chartDatasets = models.map((m, i) => ({
+    label: m.label, data: histogram(data[m.key]), backgroundColor: colorFor(m.key, i),
+  })).filter((ds) => ds.data);
 
   confidenceChart = new Chart(document.getElementById('confidenceChart'), {
     type: 'bar',
@@ -215,18 +241,15 @@ function computeRoc(rows) {
   return points;
 }
 
-function renderRocChart(data) {
-  const qRoc = computeRoc(data.quantum);
-  const cRoc = computeRoc(data.classical);
-  const chartDatasets = [];
-  if (qRoc) chartDatasets.push({
-    label: 'AL-QNN (Quantum)', data: qRoc, borderColor: CYAN, backgroundColor: CYAN,
-    pointRadius: 0, borderWidth: 2, tension: 0,
-  });
-  if (cRoc) chartDatasets.push({
-    label: 'Logistic Regression (Classical)', data: cRoc, borderColor: BLUE, backgroundColor: BLUE,
-    pointRadius: 0, borderWidth: 2, tension: 0,
-  });
+function renderRocChart(data, models) {
+  const chartDatasets = models.map((m, i) => {
+    const roc = computeRoc(data[m.key]);
+    if (!roc) return null;
+    return {
+      label: m.label, data: roc, borderColor: colorFor(m.key, i), backgroundColor: colorFor(m.key, i),
+      pointRadius: 0, borderWidth: 2, tension: 0,
+    };
+  }).filter(Boolean);
   chartDatasets.push({
     label: 'Random guess', data: [{ x: 0, y: 0 }, { x: 1, y: 1 }],
     borderColor: MUTED, borderDash: [4, 4], pointRadius: 0, borderWidth: 1,

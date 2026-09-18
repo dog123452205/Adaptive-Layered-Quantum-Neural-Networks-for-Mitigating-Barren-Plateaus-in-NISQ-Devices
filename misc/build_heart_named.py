@@ -37,6 +37,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = ROOT.parent
 
 # must match export_predictions.py's SEED/MAXS/VAL_FRAC/TEST_FRAC exactly
 SEED = 123; VAL_FRAC = 0.3; TEST_FRAC = 0.2; MAXS = 280
@@ -66,7 +67,7 @@ rng.shuffle(sel)
 y_bal = y_full[sel]
 X_raw_bal = X_raw_full.iloc[sel].reset_index(drop=True)
 
-heart_csv = pd.read_csv(ROOT / "data" / "heart.csv")
+heart_csv = pd.read_csv(PROJECT_ROOT / "data" / "heart.csv")
 assert len(X_raw_bal) == len(heart_csv), \
     f"row count mismatch: reconstructed {len(X_raw_bal)} vs data/heart.csv {len(heart_csv)}"
 assert (y_bal == heart_csv["Target"].to_numpy()).all(), \

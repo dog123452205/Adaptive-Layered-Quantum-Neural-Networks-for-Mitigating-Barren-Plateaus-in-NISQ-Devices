@@ -6,26 +6,73 @@
   "n_val": 83,
   "n_test": 55,
   "quantum": {
-    "label": "AL-QNN (đã lượng tử hóa)",
-    "accuracy": 0.6182,
-    "precision": 0.75,
-    "recall": 0.3333,
-    "f1": 0.4615,
-    "auc": 0.7434,
-    "final_depth": 4,
+    "label": "AL-QNN (Rule Scheduler)",
+    "accuracy": 0.8,
+    "precision": 0.7667,
+    "recall": 0.8519,
+    "f1": 0.807,
+    "auc": 0.8783,
+    "final_depth": 6,
     "n_qubits": 8,
-    "avg_infer_ms": 33.4719,
-    "total_infer_ms": 1840.96
+    "avg_infer_ms": 39.2698,
+    "total_infer_ms": 2159.84
   },
   "classical": {
-    "label": "Logistic Regression (chưa lượng tử hóa)",
+    "label": "Logistic Regression (Classical)",
     "accuracy": 0.8727,
     "precision": 0.9167,
     "recall": 0.8148,
     "f1": 0.8627,
     "auc": 0.918,
     "n_features": 8,
-    "avg_infer_ms": 0.1439,
-    "total_infer_ms": 7.92
+    "avg_infer_ms": 0.121,
+    "total_infer_ms": 6.65
+  },
+  "greedy": {
+    "label": "AL-QNN (Greedy Scheduler)",
+    "accuracy": 0.5636,
+    "precision": 0.5882,
+    "recall": 0.3704,
+    "f1": 0.4545,
+    "auc": 0.5602,
+    "final_depth": 8,
+    "n_qubits": 8,
+    "avg_infer_ms": 46.1278,
+    "total_infer_ms": 2537.03
+  },
+  "ppo": {
+    "label": "AL-QNN (PPO Scheduler)",
+    "accuracy": 0.6182,
+    "precision": 0.8,
+    "recall": 0.2963,
+    "f1": 0.4324,
+    "auc": 0.7606,
+    "final_depth": 7,
+    "n_qubits": 8,
+    "avg_infer_ms": 46.8954,
+    "total_infer_ms": 2579.25
+  },
+  "dqn": {
+    "label": "AL-QNN (DQN Scheduler)",
+    "accuracy": 0.6182,
+    "precision": 0.5625,
+    "recall": 1.0,
+    "f1": 0.72,
+    "auc": 0.8426,
+    "final_depth": 3,
+    "n_qubits": 8,
+    "avg_infer_ms": 19.5309,
+    "total_infer_ms": 1074.2
+  },
+  "rf": {
+    "label": "Random Forest (Classical)",
+    "accuracy": 0.8727,
+    "precision": 0.8846,
+    "recall": 0.8519,
+    "f1": 0.8679,
+    "auc": 0.92,
+    "n_features": 8,
+    "avg_infer_ms": 30.5245,
+    "total_infer_ms": 1678.85
   }
 }
